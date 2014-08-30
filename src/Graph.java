@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.PriorityQueue;
+import java.util.TreeSet;
 
 
 public class Graph {
@@ -208,30 +209,32 @@ public class Graph {
 	}
 
 	private class NodeData {
-		Path[] paths;
+		private Path[] paths;
+		private TreeSet<Edge> visitedEdges;
 
 		public NodeData(int k) {
 			paths = new Path[k];
 			for(int i=0; i<k; i++) {
 				paths[i] = new Path();//All have MAX_DISTANCE as length.
 			}
+			visitedEdges = new TreeSet<Edge>();
 		}
 		
-		public void diversityCheck(float lambda) {
-			//1st path is automatically diverse.
-			int numDiversePaths = 1;
-			for(int pathIdx=1; pathIdx<paths.length; pathIdx++) {
-				if(paths[pathIdx].emptyPath()) {
-					numNodesCompleted++;//If we ran out of paths, we won't find any more by deleting edges.
-					//Or if this is the source, it's completed by default.
-					return;
-				}
-				else numDiversePaths++;
-			}
-			if(numDiversePaths == paths.length) {
-				numNodesCompleted++;
-			}
-		}
+//		public void diversityCheck(float lambda) {
+//			//1st path is automatically diverse.
+//			int numDiversePaths = 1;
+//			for(int pathIdx=1; pathIdx<paths.length; pathIdx++) {
+//				if(paths[pathIdx].emptyPath()) {
+//					numNodesCompleted++;//If we ran out of paths, we won't find any more by deleting edges.
+//					//Or if this is the source, it's completed by default.
+//					return;
+//				}
+//				else numDiversePaths++;
+//			}
+//			if(numDiversePaths == paths.length) {
+//				numNodesCompleted++;
+//			}
+//		}
 		
 		/**
 		 * @return Diversity of a path assumed with respect to all elements currently stored in paths.
@@ -240,18 +243,23 @@ public class Graph {
 			int numDivEdges = 0;
 			ArrayList<Edge> edgeList = p.toArrayList();
 			for(Edge e : edgeList) {
-				boolean first = true;
-				for(int prevPathIdx = 0; prevPathIdx < paths.length; prevPathIdx++) {
-					if(paths[prevPathIdx].contains(e)) {
-						first = false;
-						break;
-					}
-					if(paths[prevPathIdx].emptyPath()) {
-						break;
-					}
-				}
-				if(first) {
+//				boolean first = true;
+//				for(int prevPathIdx = 0; prevPathIdx < paths.length; prevPathIdx++) {
+//					if(paths[prevPathIdx].contains(e)) {
+//						first = false;
+//						break;
+//					}
+//					if(paths[prevPathIdx].emptyPath()) {
+//						break;
+//					}
+//				}
+//				if(first) {
+//					numDivEdges++;
+//				}
+				
+				if(!visitedEdges.contains(e)) {
 					numDivEdges++;
+					visitedEdges.add(e);
 				}
 			}
 			float diversity = ((float)numDivEdges) / ((float)p.numEdges());
