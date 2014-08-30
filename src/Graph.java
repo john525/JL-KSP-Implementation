@@ -87,7 +87,7 @@ public class Graph {
 			//			}
 			
 			int pqIdx = 0;
-			int modValue = Math.round( ((float) number2Name.size()) / ((float) numReadings) );
+			int modValue = Math.round( ((float) number2Name.size()*k) / ((float) numReadings) );
 			
 			while(!pq.isEmpty()) {
 				Path path = pq.remove();
@@ -124,6 +124,7 @@ public class Graph {
 					pqIdx++;
 					long x = System.currentTimeMillis();
 					if(pqIdx % modValue == 0) {
+						//System.out.println("reading");
 						heapMax = Math.max(heapMax, memoryUsed());
 					}
 					long y = System.currentTimeMillis();
@@ -152,7 +153,7 @@ public class Graph {
 					if(e.edgeCount >= 0.5*((float)k)) {
 						float prob = ((float)e.edgeCount) / ((float)k);
 						if(Math.random() < prob) {
-							//								System.out.println(e + " deleted");
+//							System.out.println(e + " deleted");
 							edgeIt.remove();
 							numDeleted++;
 							numEdges--;
@@ -239,42 +240,71 @@ public class Graph {
 		/**
 		 * @return Diversity of a path assumed with respect to all elements currently stored in paths.
 		 */
-		public float computeDiversity(Path p) {
-			int numDivEdges = 0;
-			ArrayList<Edge> edgeList = p.toArrayList();
-			for(Edge e : edgeList) {
-//				boolean first = true;
-//				for(int prevPathIdx = 0; prevPathIdx < paths.length; prevPathIdx++) {
-//					if(paths[prevPathIdx].contains(e)) {
-//						first = false;
-//						break;
-//					}
-//					if(paths[prevPathIdx].emptyPath()) {
-//						break;
-//					}
-//				}
-//				if(first) {
+//		public float computeDiversity(Path p) {
+//			int numDivEdges = 0;
+//			ArrayList<Edge> edgeList = p.toArrayList();
+//			for(Edge e : edgeList) {
+////				boolean first = true;
+////				for(int prevPathIdx = 0; prevPathIdx < paths.length; prevPathIdx++) {
+////					if(paths[prevPathIdx].contains(e)) {
+////						first = false;
+////						break;
+////					}
+////					if(paths[prevPathIdx].emptyPath()) {
+////						break;
+////					}
+////				}
+////				if(first) {
+////					numDivEdges++;
+////				}
+//				
+//				if(!visitedEdges.contains(e)) {
 //					numDivEdges++;
+//					visitedEdges.add(e);
 //				}
-				
-				if(!visitedEdges.contains(e)) {
-					numDivEdges++;
-					visitedEdges.add(e);
-				}
-			}
-			float diversity = ((float)numDivEdges) / ((float)p.numEdges());
-			return diversity;
-		}
+//			}
+//			float diversity = ((float)numDivEdges) / ((float)p.numEdges());
+//			return diversity;
+//		}
 
 		public boolean addToEnd(Path p, float lambda) {
-			float div = computeDiversity(p);
-			if(div < lambda) return false;
-			if(div == 0) return false; //Shouldn't include any duplicate paths.
+			boolean pathGood = false;
+			
+			int numDivEdgesRequired = (int) Math.ceil(lambda * ((float)p.numEdges()));
+			int numDivEdges = 0;
+			ArrayList<Edge> edgeList = p.toArrayList();
+			ArrayList<Edge> edgesToAdd = new ArrayList<Edge>();
+			for(Edge e : edgeList) {
+				if(!visitedEdges.contains(e)) {
+					numDivEdges++;
+					edgesToAdd.add(e);
+					
+					if(numDivEdges >= numDivEdgesRequired) {
+						pathGood = true;
+						break;
+					}
+				}
+			}
+			if(!pathGood) {
+				return false;
+			}
+			
+			//If we had at least one diverse edge, we don't need to bother with this loop.
+			if(numDivEdges == 0) {
+				for(Path storedPath : paths) {
+					if(p.equals(storedPath)) {
+						return false;
+					}
+				}
+			}
 			
 			if(p.getDistance() < paths[paths.length-1].getDistance()) {
 				paths[paths.length-1] = p;
 			}
 			else return false;
+			
+			//At this point, we're 100% sure we actually will add this path to the paths array.
+			visitedEdges.addAll(edgesToAdd);
 			
 			for(int i=paths.length-2; i>=0; i--) {
 				if(paths[i].getDistance() < p.getDistance()) {
@@ -285,8 +315,8 @@ public class Graph {
 					paths[i] = p;
 				}
 			}
-			System.out.println(p);
-			System.out.println(lambda);
+//			System.out.println(p);
+//			System.out.println(lambda);
 			return true;
 		}
 	}
@@ -412,6 +442,28 @@ public class Graph {
 		@Override
 		public int compareTo(Path p) {
 			return new Double(this.getDistance()).compareTo(new Double(p.getDistance()));
+		}
+		
+		@Override
+		public boolean equals(Object o) {
+			if(o instanceof Path) {
+				Path p = (Path) o;
+				if(edge != null && p.edge != null) {
+					if(edge.head != p.edge.head) return false;
+				}
+				if(prefix == null && p.prefix == null) {
+					if(edge != null && p.edge != null) {
+						if(edge.equals(p.edge)) return true;
+						else return false;
+					}
+					else if (edge == null && p.edge == null) return true;
+					else if(edge == null || p.edge == null) return false;
+				}
+				else if(prefix == null || p.prefix == null) return false;//They're not both null, so if either is null we've found a discrepancy.
+				else if(!prefix.equals(p.prefix)) return false;
+				return true;
+			}
+			else return false;
 		}
 
 	}

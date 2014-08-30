@@ -16,7 +16,7 @@ public class Edge implements Comparable<Edge> {
 	public boolean equals(Object o) {
 		if(o instanceof Edge) {
 			Edge e = (Edge) o;
-			return this.head == e.head && this.tail == e.tail;
+			return this.head == e.head && this.tail == e.tail;//Assume this isn't a multigraph.
 		}
 		else {
 			return false;
