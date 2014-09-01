@@ -92,7 +92,7 @@ public class Graph {
 			while(!pq.isEmpty()) {
 				Path path = pq.remove();
 
-				for(Edge edge : edges[path.edge.head]) {
+				for(Edge edge : edges[path.getFinalHead()]) {
 					Path newPath = new Path(path == stub ? null : path, edge);
 					if(newPath.numNodes() > h) break;
 
@@ -327,120 +327,64 @@ public class Graph {
 
 	private class Path implements Comparable<Path> {
 
-		Path prefix;
-		Edge edge;
-		
-		int size;
+		ArrayList<Edge> edges;
 		double distance;
 
 		public Path(Path prefix, Edge edge) {
-			this.prefix = prefix;
-			this.edge = edge;
-			size = -1;
-			distance = -1;
+			edges = prefix.edges;
+			edges.add(edge);
+			distance = prefix.distance + edge.length;
 		}
 
 		//empty path constructor
 		public Path() {
-			this(null, null);
+			edges = new ArrayList<Edge>();
+			distance = Double.MAX_VALUE;
 		}
 
 		public double getDistance() {
-			if(distance != -1) return distance;
-			
-			if(prefix == null && edge == null) {
-				return Double.MAX_VALUE;
-			}
-
-			double result = 0;
-			if(prefix != null) result += prefix.getDistance();
-			if(edge != null) result += edge.length;
-			distance = result;
-			return result;
+			return distance;
 		}
 
 		public ArrayList<Edge> toArrayList() {
-			ArrayList<Edge> result = new ArrayList<Edge>();
-			if(prefix != null) {
-				result.addAll(prefix.toArrayList());
-			}
-			if(edge != null) {
-				result.add(edge);
-			}
-			return result;
+			return edges;
 		}
 
 		public int numEdges() {
-			return numNodes() - 1;
+			return edges.size();
 		}
 
 		public boolean emptyPath() {
-			return numNodes() == 0;
+			return numEdges() == 0;
 		}
 
 		public int numNodes() {
-			if(size != -1) return size;
-			
-			int result = 0;
-			if(prefix != null) {
-				result += prefix.numNodes();
-			}
-			else if(prefix == null && edge != null) {
-				result++;//add on the tail
-			}
-
-			if(edge != null) {
-				if(edge.head == edge.tail) {
-					return 1; //stub (see main algorithm)
-				}
-				else {
-					result++;//add on this head.
-				}
-			}
-			size = result;
-			return result;
+			return numEdges() + 1;
 		}
 		
 		public boolean contains(int node) {
-			if(prefix == null) {
-				return edge.head == node || edge.tail == node;//Base case.
-			}
-			else if(edge != null) {
-				if(edge.head == node) {
-					return true;
-				}
-			}
-			
-			//We know the prefix isn't null because of the first if clause.
-			return prefix.contains(node);
-		}
-
-		public boolean contains(Edge e) {
-			if(edge != null) {
-				if(edge.equals(e)) {
-					return true;
-				}
-			}
-			if(prefix != null) {
-				return prefix.contains(e);
+			if(edges.get(0).tail == node) return true;
+			for(Edge e : edges) {
+				if(e.head == node) return true;
 			}
 			return false;
 		}
 
+		public boolean contains(Edge e) {
+			return edges.contains(e);
+		}
+		
+		public int getFinalHead() {
+			return edges.get(edges.size() - 1).head;
+		}
+
 		@Override
 		public String toString() {
-			if(edge != null && prefix == null) {
-				return number2Name.get(edge.tail) + ">" + number2Name.get(edge.head);
+			StringBuilder builder = new StringBuilder(Integer.toString(edges.get(0).tail));
+			for(Edge e : edges) {
+				builder.append(">" + e.head);
 			}
-			else if(edge != null && prefix != null) {
-				return prefix.toString() + ">" + number2Name.get(edge.head);
-			}
-			else if(edge == null && prefix != null) {
-				return prefix.toString();
-			}
-			else {
-				return "empty path";
-			}
+			return builder.toString();
 		}
 
 		@Override
@@ -450,23 +394,7 @@ public class Graph {
 		
 		@Override
 		public boolean equals(Object o) {
-			if(o instanceof Path) {
-				Path p = (Path) o;
-				if(edge != null && p.edge != null) {
-					if(edge.head != p.edge.head) return false;
-				}
-				if(prefix == null && p.prefix == null) {
-					if(edge != null && p.edge != null) {
-						if(edge.equals(p.edge)) return true;
-						else return false;
-					}
-					else if (edge == null && p.edge == null) return true;
-					else if(edge == null || p.edge == null) return false;
-				}
-				else if(prefix == null || p.prefix == null) return false;//They're not both null, so if either is null we've found a discrepancy.
-				else if(!prefix.equals(p.prefix)) return false;
-				return true;
-			}
+			if(o instanceof Path) return ((Path)o).edges.equals(this.edges);
 			else return false;
 		}
 
