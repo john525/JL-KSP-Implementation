@@ -266,9 +266,16 @@ public class Graph {
 //			float diversity = ((float)numDivEdges) / ((float)p.numEdges());
 //			return diversity;
 //		}
-
+		
+		/**
+		 * @param p The path to be added.
+		 * @param lambda The diversity threshold it must fulfill.
+		 * @return Whether or not the path was added.
+		 */
 		public boolean addToEnd(Path p, float lambda) {
 			boolean pathGood = false;
+			
+			if(p.getDistance() >= paths[paths.length-1].getDistance()) return false;
 			
 			int numDivEdgesRequired = (int) Math.ceil(lambda * ((float)p.numEdges()));
 			int numDivEdges = 0;
@@ -297,15 +304,12 @@ public class Graph {
 					}
 				}
 			}
-			
-			if(p.getDistance() < paths[paths.length-1].getDistance()) {
-				paths[paths.length-1] = p;
-			}
-			else return false;
-			
 			//At this point, we're 100% sure we actually will add this path to the paths array.
-			visitedEdges.addAll(edgesToAdd);
+			visitedEdges.addAll(edgesToAdd);			
 			
+			//We already know that p.getDistance() < paths[paths.length-1].getDistance()) {
+			paths[paths.length-1] = p;
+						
 			for(int i=paths.length-2; i>=0; i--) {
 				if(paths[i].getDistance() < p.getDistance()) {
 					break;
