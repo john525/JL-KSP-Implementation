@@ -331,9 +331,10 @@ public class Graph {
 		double distance;
 
 		public Path(Path prefix, Edge edge) {
-			edges = prefix.edges;
+			if(prefix == null) edges = new ArrayList<Edge>();
+			else edges = prefix.edges;
 			edges.add(edge);
-			distance = prefix.distance + edge.length;
+			distance = (prefix != null ? prefix.distance : 0) + edge.length;
 		}
 
 		//empty path constructor
@@ -380,6 +381,8 @@ public class Graph {
 
 		@Override
 		public String toString() {
+			if(edges == null || edges.size() == 0) return "";
+			
 			StringBuilder builder = new StringBuilder(Integer.toString(edges.get(0).tail));
 			for(Edge e : edges) {
 				builder.append(">" + e.head);
