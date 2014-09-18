@@ -12,8 +12,8 @@ public class Main {
 	public static final Random rand = new Random();
 
 	public static void main(String[] args) {
-		//doTesting();
-		runOnSmallGraph();
+		doTesting();
+		//runOnSmallGraph();
 	}
 
 	public static void doTesting() {
@@ -110,7 +110,7 @@ public class Main {
 		g.addUndirectedEdge(6, 8, 5);
 		g.addUndirectedEdge(6, 7, 3);
 		g.addUndirectedEdge(7, 8, 0.5);
-		g.runAlgorithm(0, 3, 0.5F, 23, new File("res.txt"));
+		g.runAlgorithm(0, 3, 0.5F, 23, new File("res_rpath.txt"));
 		System.out.println("done");
 	}
 
