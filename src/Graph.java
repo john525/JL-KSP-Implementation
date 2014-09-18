@@ -198,8 +198,12 @@ public class Graph {
 
 	private class NodeData {
 		private ArrayList<Path> diversePaths;
+		private TreeSet<Edge> diverseEdges;
+		
 		private Path[] paths;
 		private int node;
+		
+		public static final boolean FAST_MODE = true;
 		
 		public NodeData(int k, int node) {
 			this.node = node;
@@ -208,13 +212,22 @@ public class Graph {
 				paths[i] = new Path();//All empty paths have MAX_DISTANCE as length.
 			}
 			diversePaths = new ArrayList<Path>();
+			if(FAST_MODE) {
+				diverseEdges = new TreeSet<Edge>();
+			}
 		}
 		
 		public void diverseFlush(float lambda) {
 			if(diversePaths.size() < paths.length && !paths[0].emptyPath() /*We should have at least one path*/) {
-				TreeSet<Edge> visitedEdges = new TreeSet<Edge>();//could make two versions: high memory (store visitedEdges) and high time (dynamically compute).
-				for(Path p : diversePaths) {
-					visitedEdges.addAll(p.toArrayList());
+				TreeSet<Edge> visitedEdges;
+				if(FAST_MODE) {
+					visitedEdges = diverseEdges;
+				}
+				else {
+					visitedEdges = new TreeSet<Edge>();//could make two versions: high memory (store visitedEdges) and high time (dynamically compute).
+					for(Path p : diversePaths) {
+						visitedEdges.addAll(p.toArrayList());
+					}
 				}
 				
 				for(Path p : paths) {
