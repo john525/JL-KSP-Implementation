@@ -30,22 +30,6 @@ public class Edge implements Comparable<Edge> {
 
 	@Override
 	public int compareTo(Edge other) {
-		if(head > other.head) {
-			return 1;
-		}
-		else if(head < other.head) {
-			return -1;
-		}
-		else {
-			if(tail > other.tail) {
-				return 1;
-			}
-			else if(tail < other.tail) {
-				return -1;
-			}
-			else {
-				return 0;
-			}
-		}
+		return new Double(length).compareTo(new Double(other.length));
 	}
 }

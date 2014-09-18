@@ -5,6 +5,8 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.PriorityQueue;
 import java.util.TreeSet;
 
@@ -47,76 +49,63 @@ public class Graph {
 
 		NodeData[] data = new NodeData[number2Name.size()];
 		for(int i=0; i<data.length; i++) {
-			data[i] = new NodeData(k);
+			data[i] = new NodeData(k, i);
 		}
 		int[] count = new int[number2Name.size()];
 		
 		//Statistical things
-		int itr = 0, numBefore = 0, numAfter = 0;
+		int itr = 0;
+		long timeToReadMem = 0;
 		long heapMax = 0;
-		if(statistics) {
+		if(statistics) {//Technically, should add this to timeToReadMem, but that would change an independent variable.
 			heapMax = memoryUsed();
 		}
 		long timeStart = System.currentTimeMillis();
-		long timeToReadMem = 0;
 		
 		do {
-//			System.out.println("Number of Edges: " + numEdges);
-
 			for(int i=0; i<edges.length; i++) {
 				for(Edge e : edges[i]) {
 					e.edgeCount = 0;
 				}
 			}
-
+			
+			for(int i=0; i<data.length; i++) {
+				count[i] = 0;
+			}
+			
 			PriorityQueue<Path> pq = new PriorityQueue<Path>();
-
-//			for(int i=0; i<data.length; i++) {
-//				count[i] = 0;
-//			}
+			
 			Path stub = new Path(null, new Edge(source, source, 0));
 			data[source].paths[0] = stub;
 			pq.add(stub);
-			//			for(Edge edge : edges[source]) {
-			//				Path initial = new Path(null, edge);
-			////				System.out.println(initial.getDistance());
-			//				pq.add(initial);
-			//				data[edge.head].addToEnd(initial);
-			//				//Don't add to edgeCount, since we don't want top level of pseudo tree to get deleted.
-			//				//That's what they do in the source code.
-			//			}
 			
 			int pqIdx = 0;
 			int modValue = Math.round( ((float) number2Name.size()*k) / ((float) numReadings) );
 			
 			while(!pq.isEmpty()) {
 				Path path = pq.remove();
-
+//				System.out.println(path);
+				//System.out.println(pq.size());
+								
 				for(Edge edge : edges[path.getFinalHead()]) {
 					Path newPath = new Path(path == stub ? null : path, edge);
-					if(newPath.numNodes() > h) break;
-
+					if(newPath.numNodes() >= h) break;
+					
+//					System.out.println("+" + edge + " = " + newPath);
+					
 					double distance = newPath.getDistance();
+					
 					if(!path.contains(edge.head) && distance < data[edge.head].paths[k-1].getDistance()) {
-						boolean increasedCount = false;
 						if(count[edge.head] < k) {
 							count[edge.head]++;
-							pq.add(newPath);
-							if(edge.tail != source) edge.edgeCount++;
-							increasedCount = true;
 						}
 						else {
-							pq.remove(data[edge.head].paths[k-1]);
-							pq.add(newPath);
+							//pq.remove(data[edge.head].paths[k-1]);
 						}
-						boolean saved = data[edge.head].addToEnd(newPath, lambda);
-						if(increasedCount && !saved) {
-							edge.edgeCount--;
-						}
-						if(saved) {
-							if(itr == 0) numBefore++;
-							else numAfter++;
-						}
+						data[edge.head].addToEnd(newPath, lambda);
+						pq.add(newPath);
+						
+						edge.edgeCount++; //Will decrement some edge counts later.
 					}
 				}
 				
@@ -130,16 +119,18 @@ public class Graph {
 					long y = System.currentTimeMillis();
 					timeToReadMem += y-x;
 				}
+//				System.out.println();
 			}
 
 			for(Edge e : edges[source]) {
 				e.edgeCount--;
 			}
 			
-//			for(int i=0; i<data.length; i++) {
-//				data[i].diversityCheck(lambda);
-//			}
+			for(int i=0; i<data.length; i++) {
+				data[i].diverseFlush(lambda);
+			}
 			
+			itr++;
 			if(numNodesCompleted >= data.length) {
 				break;
 			}
@@ -149,7 +140,6 @@ public class Graph {
 				Iterator<Edge> edgeIt = edges[i].iterator();
 				while(edgeIt.hasNext()) {
 					Edge e = edgeIt.next();
-//					System.out.println(e + " " + e.edgeCount);
 					if(e.edgeCount >= 0.5*((float)k)) {
 						float prob = ((float)e.edgeCount) / ((float)k);
 						if(Math.random() < prob) {
@@ -166,21 +156,16 @@ public class Graph {
 //				System.out.println("Terminating due to m/n clause.");
 				break;
 			}
-			itr++;
 		} while(numNodesCompleted < number2Name.size());
-		
-//		System.out.println("Before " + numBefore);
-//		System.out.println("After " + numAfter);
-		
-//		System.out.println("Time: " + (System.currentTimeMillis()-timeStart-timeToReadMem)/1000F + "s");
-//		System.out.println("Memory: " + (heapMax-heapStart)/1e6 + "MB");
-		
+				
 		try {
 			PrintStream output = new PrintStream(new FileOutputStream(resultFile));
 			for(int i=0; i<data.length; i++) {
 				output.println("Paths to " + number2Name.get(i));
-				for(int j=0; j<k; j++) {
-					output.println((j+1) + ". " + data[i].paths[j] + " = " + data[i].paths[j].getDistance() + " n=" + data[i].paths[j].numNodes());
+				int j = 1;
+				for(Path p : data[i].diversePaths) {
+					output.println(j + ". " + p.toString(number2Name) + " = " + p.getDistance());
+					j++;
 				}
 				output.println();
 			}
@@ -192,7 +177,10 @@ public class Graph {
 		
 		Statistics s = new Statistics();
 		s.maxHeap = heapMax;
-		s.time = (System.currentTimeMillis()-timeStart-timeToReadMem)/1000F;
+		s.time = (System.currentTimeMillis()-timeStart-timeToReadMem)/1000f;
+		
+		numNodesCompleted = 0; //Take only photos, leave only footprints.
+		
 		return s;
 	}
 
@@ -204,68 +192,69 @@ public class Graph {
 	}
 
 	public void addUndirectedEdge(int a, int b, double length) {
-		edges[b].add(new Edge(a, b, length));
-		edges[a].add(new Edge(b, a, length));
-		numEdges += 2;
+		addDirectedEdge(a, b, length);
+		addDirectedEdge(b, a, length);
 	}
 
 	private class NodeData {
+		private ArrayList<Path> diversePaths;
 		private Path[] paths;
-		private TreeSet<Edge> visitedEdges;
-
-		public NodeData(int k) {
+		private int node;
+		
+		public NodeData(int k, int node) {
+			this.node = node;
 			paths = new Path[k];
 			for(int i=0; i<k; i++) {
-				paths[i] = new Path();//All have MAX_DISTANCE as length.
+				paths[i] = new Path();//All empty paths have MAX_DISTANCE as length.
 			}
-			visitedEdges = new TreeSet<Edge>();
+			diversePaths = new ArrayList<Path>();
 		}
 		
-//		public void diversityCheck(float lambda) {
-//			//1st path is automatically diverse.
-//			int numDiversePaths = 1;
-//			for(int pathIdx=1; pathIdx<paths.length; pathIdx++) {
-//				if(paths[pathIdx].emptyPath()) {
-//					numNodesCompleted++;//If we ran out of paths, we won't find any more by deleting edges.
-//					//Or if this is the source, it's completed by default.
-//					return;
-//				}
-//				else numDiversePaths++;
-//			}
-//			if(numDiversePaths == paths.length) {
-//				numNodesCompleted++;
-//			}
-//		}
-		
-		/**
-		 * @return Diversity of a path assumed with respect to all elements currently stored in paths.
-		 */
-//		public float computeDiversity(Path p) {
-//			int numDivEdges = 0;
-//			ArrayList<Edge> edgeList = p.toArrayList();
-//			for(Edge e : edgeList) {
-////				boolean first = true;
-////				for(int prevPathIdx = 0; prevPathIdx < paths.length; prevPathIdx++) {
-////					if(paths[prevPathIdx].contains(e)) {
-////						first = false;
-////						break;
-////					}
-////					if(paths[prevPathIdx].emptyPath()) {
-////						break;
-////					}
-////				}
-////				if(first) {
-////					numDivEdges++;
-////				}
-//				
-//				if(!visitedEdges.contains(e)) {
-//					numDivEdges++;
-//					visitedEdges.add(e);
-//				}
-//			}
-//			float diversity = ((float)numDivEdges) / ((float)p.numEdges());
-//			return diversity;
-//		}
+		public void diverseFlush(float lambda) {
+			if(diversePaths.size() < paths.length && !paths[0].emptyPath() /*We should have at least one path*/) {
+				TreeSet<Edge> visitedEdges = new TreeSet<Edge>();//could make two versions: high memory (store visitedEdges) and high time (dynamically compute).
+				for(Path p : diversePaths) {
+					visitedEdges.addAll(p.toArrayList());
+				}
+				
+				for(Path p : paths) {
+					if(p.emptyPath()) break;
+					
+					int numDivEdgesRequired = (int) Math.ceil(lambda * p.numEdges());
+					int numDivEdgesFound = 0;
+					
+					List<Edge> newEdges = new LinkedList<Edge>();
+					boolean addPath = false;
+					
+					for(Edge e : p.toArrayList()) {
+						if(!visitedEdges.contains(e)) {
+							numDivEdgesFound++;
+							newEdges.add(e);
+							
+							if(numDivEdgesFound >= numDivEdgesRequired) {
+								addPath = true;
+								break;
+							}
+						}
+					}
+					
+					if(addPath) {
+						diversePaths.add(p);
+						visitedEdges.addAll(newEdges);
+					}
+					
+					if(diversePaths.size() == paths.length) {//paths.length is just where we store the k value
+						numNodesCompleted++;
+						break;
+					}
+				}
+			}
+			
+			paths = new Path[paths.length];
+			for(int i=0; i<paths.length; i++) {
+				paths[i] = new Path();//All empty paths have MAX_DISTANCE as length.
+			}
+		}
 		
 		/**
 		 * @param p The path to be added.
@@ -273,134 +262,19 @@ public class Graph {
 		 * @return Whether or not the path was added.
 		 */
 		public boolean addToEnd(Path p, float lambda) {
-			boolean pathGood = false;
-			
-			if(p.getDistance() >= paths[paths.length-1].getDistance()) return false;
-			
-			int numDivEdgesRequired = (int) Math.ceil(lambda * ((float)p.numEdges()));
-			int numDivEdges = 0;
-			ArrayList<Edge> edgeList = p.toArrayList();
-			ArrayList<Edge> edgesToAdd = new ArrayList<Edge>();
-			for(Edge e : edgeList) {
-				if(!visitedEdges.contains(e)) {
-					numDivEdges++;
-					edgesToAdd.add(e);
-					
-					if(numDivEdges >= numDivEdgesRequired) {
-						pathGood = true;
-						break;
-					}
-				}
-			}
-			if(!pathGood) {
+			if(p.getDistance() >= paths[paths.length-1].getDistance()) {
 				return false;
 			}
-			
-			//If we had at least one diverse edge, we don't need to bother with this loop.
-			if(numDivEdges == 0) {
-				for(Path storedPath : paths) {
-					if(p.equals(storedPath)) {
-						return false;
-					}
-				}
-			}
-			//At this point, we're 100% sure we actually will add this path to the paths array.
-			visitedEdges.addAll(edgesToAdd);			
-			
-			//We already know that p.getDistance() < paths[paths.length-1].getDistance()) {
 			paths[paths.length-1] = p;
-						
-			for(int i=paths.length-2; i>=0; i--) {
-				if(paths[i].getDistance() < p.getDistance()) {
-					break;
+			
+			for(int i=paths.length-1; i>0; i--) {
+				if(paths[i].getDistance() < paths[i-1].getDistance()) {
+					paths[i] = paths[i-1];
+					paths[i-1] = p;
 				}
-				else {
-					paths[i+1] = paths[i];
-					paths[i] = p;
-				}
+				else break;
 			}
-//			System.out.println(p);
-//			System.out.println(lambda);
 			return true;
 		}
 	}
-
-	private class Path implements Comparable<Path> {
-
-		ArrayList<Edge> edges;
-		double distance;
-
-		public Path(Path prefix, Edge edge) {
-			if(prefix == null) edges = new ArrayList<Edge>();
-			else edges = prefix.edges;
-			edges.add(edge);
-			distance = (prefix != null ? prefix.distance : 0) + edge.length;
-		}
-
-		//empty path constructor
-		public Path() {
-			edges = new ArrayList<Edge>();
-			distance = Double.MAX_VALUE;
-		}
-
-		public double getDistance() {
-			return distance;
-		}
-
-		public ArrayList<Edge> toArrayList() {
-			return edges;
-		}
-
-		public int numEdges() {
-			return edges.size();
-		}
-
-		public boolean emptyPath() {
-			return numEdges() == 0;
-		}
-
-		public int numNodes() {
-			return numEdges() + 1;
-		}
-		
-		public boolean contains(int node) {
-			if(edges.get(0).tail == node) return true;
-			for(Edge e : edges) {
-				if(e.head == node) return true;
-			}
-			return false;
-		}
-
-		public boolean contains(Edge e) {
-			return edges.contains(e);
-		}
-		
-		public int getFinalHead() {
-			return edges.get(edges.size() - 1).head;
-		}
-
-		@Override
-		public String toString() {
-			if(edges == null || edges.size() == 0) return "";
-			
-			StringBuilder builder = new StringBuilder(Integer.toString(edges.get(0).tail));
-			for(Edge e : edges) {
-				builder.append(">" + e.head);
-			}
-			return builder.toString();
-		}
-
-		@Override
-		public int compareTo(Path p) {
-			return new Double(this.getDistance()).compareTo(new Double(p.getDistance()));
-		}
-		
-		@Override
-		public boolean equals(Object o) {
-			if(o instanceof Path) return ((Path)o).edges.equals(this.edges);
-			else return false;
-		}
-
-	}
-
 }
