@@ -14,6 +14,7 @@ public class Main {
 	public static void main(String[] args) {
 		System.out.println("JL-KSP-Implementation");
 		doTesting();
+		//runOnSmallGraph();
 	}
 
 	public static void doTesting() {

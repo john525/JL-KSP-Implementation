@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -224,7 +225,7 @@ public class Graph {
 					visitedEdges = diverseEdges;
 				}
 				else {
-					visitedEdges = new TreeSet<Edge>();//could make two versions: high memory (store visitedEdges) and high time (dynamically compute).
+					visitedEdges = new TreeSet<Edge>();
 					for(Path p : diversePaths) {
 						visitedEdges.addAll(p.toArrayList());
 					}
@@ -236,13 +237,17 @@ public class Graph {
 					int numDivEdgesRequired = (int) Math.ceil(lambda * p.numEdges());
 					int numDivEdgesFound = 0;
 					
-					List<Edge> newEdges = new LinkedList<Edge>();
 					boolean addPath = false;
 					
-					for(Edge e : p.toArrayList()) {
+					ArrayList<Edge> edgeList = p.toArrayList();
+					List<Edge> newEdgesSoFar = new LinkedList<Edge>();
+					int lastCheckedIndex = -1;
+					for(Edge e : edgeList) {
+						lastCheckedIndex++;
 						if(!visitedEdges.contains(e)) {
+//							if(node == 5) System.out.println(p.toString(number2Name) + " has " + e.toString(number2Name));
 							numDivEdgesFound++;
-							newEdges.add(e);
+							newEdgesSoFar.add(e);
 							
 							if(numDivEdgesFound >= numDivEdgesRequired) {
 								addPath = true;
@@ -253,7 +258,10 @@ public class Graph {
 					
 					if(addPath) {
 						diversePaths.add(p);
-						visitedEdges.addAll(newEdges);
+						visitedEdges.addAll(newEdgesSoFar);
+						for(int i = lastCheckedIndex + 1; i < edgeList.size(); i++) {
+							visitedEdges.add(edgeList.get(i));
+						}
 					}
 					
 					if(diversePaths.size() == paths.length) {//paths.length is just where we store the k value

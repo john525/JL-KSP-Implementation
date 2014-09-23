@@ -12,10 +12,14 @@ public class Path implements Comparable<Path> {
 	public Path(Path prefix, Edge edge) {
 		this.prefix = prefix;
 		this.edge = edge;
-		size = 0;
-		if(prefix != null) size = prefix.size;
-		if(edge != null) size++;
-		distance = (prefix==null? 0:prefix.distance) + (edge==null? 0:edge.length);
+		size = -1;
+		if(prefix != null) {
+			size = prefix.size + 1;
+		}
+		distance = -1;
+		if(prefix != null && edge != null) {
+			distance = prefix.distance + edge.length;
+		}
 	}
 
 	//empty path constructor
