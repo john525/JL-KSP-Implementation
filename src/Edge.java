@@ -31,7 +31,13 @@ public class Edge implements Comparable<Edge> {
 	}
 	
 	public String toString(HashMap<Integer, String> number2Name) {
-		return number2Name.get(tail) + ">" + number2Name.get(head);	}
+		return number2Name.get(tail) + ">" + number2Name.get(head);
+	}
+	
+	@Override
+	public int hashCode() {
+		return head + tail;
+	}
 	
 	@Override
 	public int compareTo(Edge other) {

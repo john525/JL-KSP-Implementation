@@ -8,7 +8,9 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.TreeSet;
 
 
@@ -50,7 +52,7 @@ public class Graph {
 
 		NodeData[] data = new NodeData[number2Name.size()];
 		for(int i=0; i<data.length; i++) {
-			data[i] = new NodeData(k, i);
+			data[i] = new NodeData(k, h, i);
 		}
 		int[] count = new int[number2Name.size()];
 		
@@ -77,7 +79,7 @@ public class Graph {
 			PriorityQueue<Path> pq = new PriorityQueue<Path>();
 			
 			Path stub = new Path(null, new Edge(source, source, 0));
-			data[source].paths[0] = stub;
+			data[source].addToEnd(stub, k);
 			pq.add(stub);
 			
 			int pqIdx = 0;
@@ -96,14 +98,16 @@ public class Graph {
 					
 					double distance = newPath.getDistance();
 					
-					if(!path.contains(edge.head) && distance < data[edge.head].paths[k-1].getDistance()) {
+					if(!path.contains(edge.head) && distance < data[edge.head].longestPathDistance(k)) {
 						if(count[edge.head] < k) {
 							count[edge.head]++;
 						}
 						else {
 							//pq.remove(data[edge.head].paths[k-1]);
 						}
-						data[edge.head].addToEnd(newPath, lambda);
+
+						data[edge.head].addToEnd(newPath, k);
+						
 						pq.add(newPath);
 						
 						edge.edgeCount++; //Will decrement some edge counts later.
@@ -128,7 +132,7 @@ public class Graph {
 			}
 			
 			for(int i=0; i<data.length; i++) {
-				data[i].diverseFlush(lambda);
+				data[i].diverseFlush(k, lambda);
 			}
 			
 			itr++;
@@ -198,30 +202,27 @@ public class Graph {
 	}
 
 	private class NodeData {
-		private ArrayList<Path> diversePaths;
-		private TreeSet<Edge> diverseEdges;
+		private List<Path> diversePaths;
+		private Set<Edge> diverseEdges;
 		
-		private Path[] paths;
+		private LinkedList<Path> paths;
 		private int node;
 		
-		public static final boolean FAST_MODE = true;
+		public static final boolean STORAGE = true;
 		
-		public NodeData(int k, int node) {
+		public NodeData(int k, int h, int node) {
 			this.node = node;
-			paths = new Path[k];
-			for(int i=0; i<k; i++) {
-				paths[i] = new Path();//All empty paths have MAX_DISTANCE as length.
-			}
+			paths = new LinkedList<Path>();
 			diversePaths = new ArrayList<Path>();
-			if(FAST_MODE) {
-				diverseEdges = new TreeSet<Edge>();
+			if(STORAGE) {
+				diverseEdges = new HashSet<Edge>(k*h);
 			}
 		}
 		
-		public void diverseFlush(float lambda) {
-			if(diversePaths.size() < paths.length && !paths[0].emptyPath() /*We should have at least one path*/) {
-				TreeSet<Edge> visitedEdges;
-				if(FAST_MODE) {
+		public void diverseFlush(int k, float lambda) {
+			if(diversePaths.size() < paths.size() && paths.size() > 0 /*We should have at least one path*/) {
+				Set<Edge> visitedEdges;
+				if(STORAGE) {
 					visitedEdges = diverseEdges;
 				}
 				else {
@@ -231,21 +232,18 @@ public class Graph {
 					}
 				}
 				
-				for(Path p : paths) {
-					if(p.emptyPath()) break;
-					
+				for(Path p : paths) {			
 					int numDivEdgesRequired = (int) Math.ceil(lambda * p.numEdges());
 					int numDivEdgesFound = 0;
 					
 					boolean addPath = false;
 					
-					ArrayList<Edge> edgeList = p.toArrayList();
+					List<Edge> edgeList = p.toArrayList();
 					List<Edge> newEdgesSoFar = new LinkedList<Edge>();
 					int lastCheckedIndex = -1;
 					for(Edge e : edgeList) {
 						lastCheckedIndex++;
 						if(!visitedEdges.contains(e)) {
-//							if(node == 5) System.out.println(p.toString(number2Name) + " has " + e.toString(number2Name));
 							numDivEdgesFound++;
 							newEdgesSoFar.add(e);
 							
@@ -264,17 +262,19 @@ public class Graph {
 						}
 					}
 					
-					if(diversePaths.size() == paths.length) {//paths.length is just where we store the k value
+					if(diversePaths.size() == k) {//paths.length is just where we store the k value
 						numNodesCompleted++;
 						break;
 					}
 				}
 			}
 			
-			paths = new Path[paths.length];
-			for(int i=0; i<paths.length; i++) {
-				paths[i] = new Path();//All empty paths have MAX_DISTANCE as length.
-			}
+			paths.clear();
+		}
+		
+		public double longestPathDistance(int k) {
+			if(paths.size() < k) return Double.MAX_VALUE;
+			else return ((LinkedList<Path>)paths).getLast().getDistance();
 		}
 		
 		/**
@@ -282,19 +282,23 @@ public class Graph {
 		 * @param lambda The diversity threshold it must fulfill.
 		 * @return Whether or not the path was added.
 		 */
-		public boolean addToEnd(Path p, float lambda) {
-			if(p.getDistance() >= paths[paths.length-1].getDistance()) {
+		public boolean addToEnd(Path p, int k) {
+			if(paths.size() == k && p.getDistance() < longestPathDistance(k)) {
+				paths.remove(paths.size()-1);
+			}
+			else if(paths.size() == k && p.getDistance() >= longestPathDistance(k)) {
 				return false;
 			}
-			paths[paths.length-1] = p;
 			
-			for(int i=paths.length-1; i>0; i--) {
-				if(paths[i].getDistance() < paths[i-1].getDistance()) {
-					paths[i] = paths[i-1];
-					paths[i-1] = p;
+			ListIterator<Path> li = paths.listIterator(paths.size());
+			do {
+				if(!li.hasPrevious()) {
+					li.add(p);
+					return true;
 				}
-				else break;
-			}
+			} while(li.previous().getDistance() > p.getDistance());
+			li.next();
+			li.add(p);
 			return true;
 		}
 	}

@@ -1,0 +1,45 @@
+Paths to A
+1. A>A = 0.0
+
+Paths to B
+1. A>C>B = 10.0
+2. A>D>F>G>B = 11.0
+
+Paths to C
+1. A>C = 3.0
+2. A>D>F>G>B>C = 18.0
+3. A>D>F>E>C = 20.0
+
+Paths to D
+1. A>D = 6.0
+2. A>C>B>G>F>D = 15.0
+3. A>C>E>F>D = 17.0
+
+Paths to E
+1. A>D>F>E = 11.0
+2. A>C>E = 12.0
+3. A>D>F>G>E = 16.0
+
+Paths to F
+1. A>D>F = 8.0
+2. A>C>B>G>F = 13.0
+3. A>C>E>F = 15.0
+
+Paths to G
+1. A>D>F>G = 9.0
+2. A>C>B>G = 12.0
+3. A>C>E>F>G = 16.0
+
+Paths to H
+1. A>D>F>G>H = 12.0
+2. A>C>B>G>H = 15.0
+3. A>C>E>G>H = 22.0
+
+Paths to I
+1. A>D>F>G>H>I = 12.5
+2. A>C>B>G>H>I = 15.5
+
+Paths to J
+1. A>D>F>E>J = 14.0
+2. A>C>E>J = 15.0
+
