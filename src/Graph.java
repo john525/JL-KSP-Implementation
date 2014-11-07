@@ -39,7 +39,31 @@ public class Graph {
 		rt.gc();
 		return rt.totalMemory() - rt.freeMemory();
 	}
-
+	
+	/**
+	 * Runs the nondiverse algorithm.
+	 * @param source
+	 * @param k
+	 * @param resultFile
+	 * @return
+	 */
+	public Statistics runAlgorithm(int source, int k, File resultFile) {
+		return runAlgorithm(source, k, 0f, resultFile);
+	}
+	
+	/**
+	 * Runs the algorithm with h=23, as this is the maximum length of a gene regulatory pathway.
+	 * (Gene regulatory pathway discover was this algorithm's initial application.
+	 * @param source
+	 * @param k
+	 * @param lambda
+	 * @param resultFile
+	 * @return
+	 */
+	public Statistics runAlgorithm(int source, int k, float lambda, File resultFile) {
+		return runAlgorithm(source, k, lambda, 23, resultFile);
+	}
+	
 	/**
 	 * Run the single source k diverse short paths algorithm.
 	 * @param source Where the algorithm starts from.
@@ -107,7 +131,7 @@ public class Graph {
 							//pq.remove(data[edge.head].paths[k-1]);
 						}
 
-						data[edge.head].addToEnd(newPath, k);
+						/*if(!data[edge.head].complete(k))*/ data[edge.head].addToEnd(newPath, k);
 						
 						pq.add(newPath);
 						
@@ -163,26 +187,26 @@ public class Graph {
 				break;
 			}
 		} while(numNodesCompleted < number2Name.size());
-		
-		
+				
 		Arrays.sort(data);
 		try {
 			PrintStream output = new PrintStream(new FileOutputStream(resultFile));
-			for(NodeData node : data) {
+			for(int i=0; i<data.length; i++) {
+				NodeData node = data[i];
 				if(node.getNumber() == source) continue;
 				output.println(number2Name.get(node.getNumber()) + " " + node.importance());
 				int j = 1;
 				for(Path p : node.diversePaths) {
-					output.println(j + "th path (distance:" /*+ p.toString(number2Name)*/ + p.getDistance() + "):");
+					output.println(j + ". " + p.toString(number2Name) + " = " + p.getDistance());
 					j++;
 				}
 				output.println();
 			}
 			output.close();
-		}
-		catch (IOException e) {
+		} catch(IOException e) {
 			e.printStackTrace();
 		}
+			
 		
 		Statistics s = new Statistics();
 		s.maxHeap = heapMax;
@@ -278,6 +302,10 @@ public class Graph {
 			}
 			
 			paths.clear();
+		}
+		
+		public boolean complete(int k) {
+			return diversePaths.size() == k;
 		}
 		
 		public double longestPathDistance(int k) {

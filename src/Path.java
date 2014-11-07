@@ -8,14 +8,25 @@ public class Path implements Comparable<Path> {
 
 	int size;
 	double distance;
-
+	
+	int maxNodeID, minNodeID;
+	
 	public Path(Path prefix, Edge edge) {
 		this.prefix = prefix;
 		this.edge = edge;
 		size = -1;
+		maxNodeID = -1;
+		minNodeID = Integer.MAX_VALUE;
 		if(prefix != null) {
 			size = prefix.size + 1;
+			maxNodeID = Math.max(maxNodeID, prefix.maxNodeID);
+			minNodeID = Math.min(minNodeID, prefix.minNodeID);
 		}
+		if(edge != null) {
+			maxNodeID = Math.max(maxNodeID, Math.max(edge.head, edge.tail));
+			minNodeID = Math.min(minNodeID, Math.min(edge.head, edge.tail));
+		}
+		
 		distance = -1;
 		if(prefix != null && edge != null) {
 			distance = prefix.distance + edge.length;
@@ -84,6 +95,8 @@ public class Path implements Comparable<Path> {
 	}
 
 	public boolean contains(int node) {
+		//if(node > maxNodeID || node < minNodeID) return false;
+		
 		if(prefix == null) {
 			return edge.head == node || edge.tail == node;//Base case.
 		}
@@ -97,17 +110,19 @@ public class Path implements Comparable<Path> {
 		return prefix.contains(node);
 	}
 
-	public boolean contains(Edge e) {
-		if(edge != null) {
-			if(edge.equals(e)) {
-				return true;
-			}
-		}
-		if(prefix != null) {
-			return prefix.contains(e);
-		}
-		return false;
-	}
+//	public boolean contains(Edge e) {
+//		if(e.length > maxEdgeLength) return false;
+//		
+//		if(edge != null) {
+//			if(edge.equals(e)) {
+//				return true;
+//			}
+//		}
+//		if(prefix != null) {
+//			return prefix.contains(e);
+//		}
+//		return false;
+//	}
 
 	public String toString(HashMap<Integer, String> number2Name) {
 		if(edge != null && prefix == null) {
@@ -142,6 +157,9 @@ public class Path implements Comparable<Path> {
 	public boolean equals(Object o) {
 		if(o instanceof Path) {
 			Path p = (Path) o;
+			
+			if(size != p.size || distance != p.distance) return false;
+			
 			if(edge != null && p.edge != null) {
 				if(edge.head != p.edge.head) return false;
 			}

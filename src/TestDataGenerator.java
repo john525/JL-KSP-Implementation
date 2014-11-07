@@ -5,7 +5,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Random;
 
 
@@ -15,7 +14,7 @@ public class TestDataGenerator {
 	//public static final float[] densities = {0.001f, 0.002f, 0.005f};
 	public static final int[] avgDegrees = {5, 10, 20};
 	public static final Random rand = new Random();
-		
+	
 	void randomize(File f, int size, int deg) throws IOException {
 		//true = autoflush
 		PrintStream output = new PrintStream(new FileOutputStream(f), true);
@@ -149,7 +148,7 @@ public class TestDataGenerator {
 					e.printStackTrace();
 				}
 				count++;
-				System.out.println(count+"/12 graphs generated.");
+				System.out.println(count+"/"+sizes.length*avgDegrees.length+" graphs generated.");
 			}
 		}
 		System.out.println("Done making files!");
