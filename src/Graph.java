@@ -3,6 +3,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -162,14 +163,17 @@ public class Graph {
 				break;
 			}
 		} while(numNodesCompleted < number2Name.size());
-				
+		
+		
+		Arrays.sort(data);
 		try {
 			PrintStream output = new PrintStream(new FileOutputStream(resultFile));
-			for(int i=0; i<data.length; i++) {
-				output.println("Paths to " + number2Name.get(i));
+			for(NodeData node : data) {
+				if(node.getNumber() == source) continue;
+				output.println(number2Name.get(node.getNumber()) + " " + node.importance());
 				int j = 1;
-				for(Path p : data[i].diversePaths) {
-					output.println(j + ". " + p.toString(number2Name) + " = " + p.getDistance());
+				for(Path p : node.diversePaths) {
+					output.println(j + "th path (distance:" /*+ p.toString(number2Name)*/ + p.getDistance() + "):");
 					j++;
 				}
 				output.println();
@@ -201,7 +205,7 @@ public class Graph {
 		addDirectedEdge(b, a, length);
 	}
 
-	private class NodeData {
+	private class NodeData implements Comparable<NodeData> {
 		private List<Path> diversePaths;
 		private Set<Edge> diverseEdges;
 		
@@ -219,6 +223,10 @@ public class Graph {
 			}
 		}
 		
+		public int getNumber() {
+			return node;
+		}
+
 		public void diverseFlush(int k, float lambda) {
 			if(diversePaths.size() < paths.size() && paths.size() > 0 /*We should have at least one path*/) {
 				Set<Edge> visitedEdges;
@@ -300,6 +308,22 @@ public class Graph {
 			li.next();
 			li.add(p);
 			return true;
+		}
+		
+		public double importance() {
+			double probAllWrong = 1.0;
+			for(Path p : diversePaths) {
+				double pathImp = p.getDistance() - ((double)p.numEdges());
+				double probRight = Math.exp(-pathImp);
+				probAllWrong *= (1.0 - probRight);
+			}
+			double probAnyRight = 1.0 - probAllWrong;
+			return probAnyRight;
+		}
+
+		@Override
+		public int compareTo(NodeData other) {
+			return -(new Double(importance()).compareTo(other.importance()));
 		}
 	}
 }

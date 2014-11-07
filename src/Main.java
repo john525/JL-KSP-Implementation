@@ -1,21 +1,182 @@
 import java.io.FileInputStream;
+import java.text.SimpleDateFormat;
 import java.util.Scanner;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.Random;
 
 public class Main {
 
 	public static final int[] sizes = {10000, 50000, 250000, 1000000};
 	public static final int[] avgDegrees = {5, 10, 20};
-	public static final Random rand = new Random();
-
+	
 	public static void main(String[] args) {
 		System.out.println("JL-KSP-Implementation");
-		doTesting();
+		//doTesting();
+		//runOnSmallGraph();
+		ENTS(Integer.parseInt(args[0]), Float.parseFloat(args[1]), 23);
 	}
+	
+	public static void countBadEdges() {
+		System.out.println("Counting bad edges");
+		
+		ArrayList<File> graphFiles = null;
+		int num = 0, tot=0;
+		
+		File graphs = new File("/storage/db/SCOP/RANKPROP/fatcat_hhblist_e0.0");
+		if(!graphs.exists()) {
+			graphs = new File("/work/db/SCOP/RANKPROP/fatcat_hhblist_e0.0");
+		}
+		if(!graphs.exists()) {
+			graphs = new File("D:\\hh_graphs");
+		}
+		
+		try {
+			graphFiles = new ArrayList<File>();
+			BufferedReader reader = new BufferedReader(new FileReader(new File(graphs, "edge_files.list")));
+			while(reader.ready()) {
+				File file = new File(graphs, reader.readLine());
+				graphFiles.add(file);
+			}
+			reader.close();
+		}
+		catch(IOException e) {
+			e.printStackTrace();
+		}
+		
+		int numEdges = 0;
+		int numGraphs = 0;
+		
+		int i = 0;
+		for(File f : graphFiles) {
+			try {
+				BufferedReader graphReader = new BufferedReader(new FileReader(f));
+				int numThisTime = 0;
+				while(graphReader.ready()) {
+					String[] info = graphReader.readLine().split(" ");
+					String src = f.getName().replace(".pair", "");
+					if(info[0].equals(src) || info[1].equals(src)) {
+						if(Float.valueOf(info[2]) == 0f) {
+							numThisTime++;
+						}
+					}
+				}
+				graphReader.close();
+				if(numThisTime > 0) {
+					numEdges += numThisTime;
+					numGraphs++;
+				}
+				i++;
+				System.out.println(i + "/" + graphFiles.size());
+				
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		System.out.println("num edges: " + numEdges);
+		System.out.println("num graphs: " + numGraphs);
+	}
+	
+	public static void ENTS(int k, float lambda, int h) {
+		System.out.println("John Lhota ENTS.");
+		
+		ArrayList<File> graphFiles = null;
+		int num = 0, tot=0;
+		
+		File graphs = new File("/storage/db/SCOP/RANKPROP/fatcat_hhblist_e0.0");
+		if(!graphs.exists()) {
+			graphs = new File("/work/db/SCOP/RANKPROP/fatcat_hhblist_e0.0");
+		}
+		if(!graphs.exists()) {
+			graphs = new File("D:\\hh_graphs");
+		}
+		
+		try {
+			graphFiles = new ArrayList<File>();
+			BufferedReader reader = new BufferedReader(new FileReader(new File(graphs, "edge_files.list")));
+			while(reader.ready()) {
+				File file = new File(graphs, reader.readLine());
+				graphFiles.add(file);
+			}
+			reader.close();
+		}
+		catch(IOException e) {
+			e.printStackTrace();
+		}
+		
+		SimpleDateFormat format = new SimpleDateFormat("MM/dd/yyyy");
+		
+		Date programStart = new Date();
+		
+		for(int i = 0; i<graphFiles.size(); ) {
+			File f = graphFiles.get(i);
+			long startTime = System.currentTimeMillis();
+			try {
+				runProteinFile(k, lambda, f);
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.out.println("Program failed on " + format.format(new Date()));
+			}
+			i++;
+			System.out.print(i + "/" + graphFiles.size());
+			System.out.print(" ("+f.getName()+", "+(System.currentTimeMillis()-startTime)/1000F+"s)");
+			System.out.println();
+		}
+		System.out.println("Fast ENTS is finished.");
+		System.out.println("Program ended successfully on " + format.format(new Date()));
+	}
+	
+	public static void runProteinFile(int k, float lambda, File f) {
+		HashMap<Integer, String> number2Name = new HashMap<Integer, String>();
+		HashMap<String, Integer> name2Number = new HashMap<String, Integer>();
+		BufferedReader reader;
+		try {
+			reader = new BufferedReader(new FileReader(f));
+			
+			String line;
+			int n = 0;
 
+			while(reader.ready()) {
+				String[] info = reader.readLine().split(" ");
+				if(!name2Number.containsKey(info[0])) {
+					name2Number.put(info[0], n);
+					number2Name.put(n, info[0]);
+					n++;
+				}
+				if(!name2Number.containsKey(info[1])) {
+					name2Number.put(info[1], n);
+					number2Name.put(n, info[1]);
+					n++;
+				}
+			}
+			
+			Graph g = new Graph(number2Name);
+			
+			reader = new BufferedReader(new FileReader(f));
+			
+			while(reader.ready()) {
+				String[] info = reader.readLine().split(" ");
+				g.addUndirectedEdge(name2Number.get(info[0]), name2Number.get(info[1]), 1.0-Math.log(Double.valueOf(info[2]))/Math.log(10.0));
+			}
+			
+			int source = name2Number.get(f.getName().replace(".pair", ""));
+			name2Number = null;
+			
+			File resultDir = new File("D:\\ENTS_results_logged+1_edges_prob", "K="+k+"_"+"lambda="+lambda);
+			resultDir.mkdir();
+			File finalResult = new File(resultDir, number2Name.get(source)+".txt");
+			g.runAlgorithm(source, k, lambda, 23, finalResult);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
 	public static void doTesting() {
 		for(int i=0; i<sizes.length; i++) {
 			for(int j=0; j<avgDegrees.length; j++) {
