@@ -95,7 +95,7 @@ public class Path implements Comparable<Path> {
 	}
 
 	public boolean contains(int node) {
-		//if(node > maxNodeID || node < minNodeID) return false;
+		if(node > maxNodeID || node < minNodeID) return false;
 		
 		if(prefix == null) {
 			return edge.head == node || edge.tail == node;//Base case.

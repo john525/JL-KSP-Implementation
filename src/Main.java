@@ -3,13 +3,21 @@ import java.text.SimpleDateFormat;
 import java.util.Scanner;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 import jxl.CellType;
@@ -25,14 +33,44 @@ import jxl.write.Number;
 public class Main {
 	
 	public static void main(String[] args) {
-		System.out.println("JL-KSP-Implementation");
-		//runOnSmallGraph();
-		//benchmarkMax(new File("/home/jlhota/Documents/shortestpaths/Fast_ENTS/results/"));
-		//doTesting(false);
-		
+		System.out.println("JL-KSP-Implementation");		
 		ENTS(Integer.parseInt(args[0]), Float.parseFloat(args[1]), Integer.parseInt(args[2]));
 		
+//		reformatData("D:\\ENTS_results_logged_edges\\K=4_lambda=0.5");
+//		reformatData("D:\\ENTS_results_logged+1_edges\\K=4_lambda=0.5");
+
 		System.out.println("Main method is done.");
+	}
+	
+	public static void reformatData(String folderPath) {
+		File folder = new File(folderPath);
+		for(File resultFile : folder.listFiles()) {
+			if(resultFile.isDirectory()) continue;
+			try {
+				BufferedReader reader = new BufferedReader(new FileReader(resultFile));
+				File reformatted = new File(resultFile.getName());
+				reformatted.createNewFile();
+				PrintStream output = new PrintStream(new FileOutputStream(reformatted));
+				while(reader.ready()) {
+					String ln = reader.readLine();
+					if(ln.isEmpty() || ln.contains("path") || ln.contains(" = ")) {
+						continue;
+					}
+					else {
+						String[] info = ln.split(" ");
+						output.println(info[0] + "\t" + info[1]);
+					}
+				}
+				reader.close();
+				output.close();
+				
+				Files.move(java.nio.file.Paths.get(reformatted.getPath()),
+						java.nio.file.Paths.get(resultFile.getPath()),
+						java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	public static void ENTS(int k, float lambda, int h) {
@@ -63,9 +101,7 @@ public class Main {
 		}
 		
 		SimpleDateFormat format = new SimpleDateFormat("MM/dd/yyyy");
-		
-		Date programStart = new Date();
-		
+				
 		for(int i = 0; i<graphFiles.size(); ) {
 			File f = graphFiles.get(i);
 			long startTime = System.currentTimeMillis();
@@ -114,75 +150,120 @@ public class Main {
 			
 			while(reader.ready()) {
 				String[] info = reader.readLine().split(" ");
-				g.addUndirectedEdge(name2Number.get(info[0]), name2Number.get(info[1]), 1.0-Math.log(Double.valueOf(info[2]))/Math.log(10.0));
+				g.addUndirectedEdge(name2Number.get(info[0]), name2Number.get(info[1]), -Math.log(Double.valueOf(info[2]))/Math.log(10.0));
 			}
 			
 			int source = name2Number.get(f.getName().replace(".pair", ""));
 			name2Number = null;
 			
-			File resultDir = new File("D:\\ENTS_results_logged+1_edges_prob", "K="+k+"_"+"lambda="+lambda);
+			File resultDir = new File("results/ENTS_results_logged_edges_prob", "K="+k+"_"+"lambda="+lambda);
 			resultDir.mkdir();
 			File finalResult = new File(resultDir, number2Name.get(source)+".txt");
-			g.runAlgorithm(source, k, lambda, 23, finalResult);
+			g.runAlgorithm(source, k, lambda, 23, false, finalResult);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	public static void benchmarkMax(File resultDir) {
-		HashMap<String, String> classifications = new HashMap<String, String>(25000);
+	public static void benchmarkProb(File resultDir) {
+		HashMap<String, String> classifications = loadClassifications();	
+		TreeSet<Hit> hits = new TreeSet<Hit>();
 		
 		Workbook workbook = null;
 		WritableWorkbook temp = null;
-		WritableSheet sheet = null;
 		try {
 			File spreadsheet = new File("/home/jlhota/Documents/shortestpaths/Fast_ENTS/algorithm_evaluation/empty.xls");
 			workbook = Workbook.getWorkbook(spreadsheet);
-			temp = Workbook.createWorkbook(new File("/home/jlhota/Documents/shortestpaths/Fast_ENTS/algorithm_evaluation/data.xls"), workbook);
-			
-			sheet = temp.getSheet(0);
-			
-			Label topN = new Label(0, 0, "Top N Hits");
-			sheet.addCell(topN);
-			
-			for(int i = 0; i < 2000; i++) {
-				Number n = new Number(0, i+1, i+1);
-				sheet.addCell(n);
-			}
-		}
-		catch(Exception e) {
+			temp = Workbook.createWorkbook(new File("/home/jlhota/Documents/shortestpaths/Fast_ENTS/algorithm_evaluation/prob_data.xls"), workbook);
+		} catch(Exception e) {
 			e.printStackTrace();
 		}
 		
-		try {
-			File scopFile = new File("/storage/db/SCOP/dir.scop_PDP.txt");
-			BufferedReader reader = new BufferedReader(new FileReader(scopFile));
-			while(reader.ready()) {
-				String[] classification = reader.readLine().split("\\s");
-				for(String s : classification) {
-					System.out.print(s + "___");
-				}
-				System.out.println();
-				String[] scop = classification[2].split("\\.");
-				if(!classification[3].equals("-")) {
-					classifications.put(classification[3], scop[0] + "." + scop[1]);
-				}
-			}
-		} catch(IOException e) {
-			e.printStackTrace();
-		}
-		
-		TreeSet<Hit> hits = new TreeSet<Hit>();
-				
 		File[] folders = resultDir.listFiles();
 		int paramSetID = 0;
 		for(File folder : folders) {
 			System.out.println("Working on " + (paramSetID+1) + "/" + folders.length);
 			
-			try {
-				File benchmarkFolder = new File(folder, "benchmark_testing");
-				benchmarkFolder.mkdir();
+			try {				
+				File[] resultFiles = folder.listFiles();
 				
+				for(File file : resultFiles) {
+					if(file.isDirectory()) continue;
+					
+					//System.out.println(paramSetID + "/" + folders.length + " - Working on " + file.getName());
+					
+					String query = file.getName().replace(".txt", "");
+					
+					BufferedReader reader = new BufferedReader(new FileReader(file));
+					Map<String, List<Double>> queryHits = new HashMap<String, List<Double>>();
+					while(reader.ready()) {
+						String line = reader.readLine();
+						if(line.contains("path") || line.isEmpty()) continue;
+						
+						String[] summary = line.split(" ");
+						String proteinName = summary[0];
+						
+						if(!summary[1].equals("Infinity")) {
+							double importance = Double.valueOf(summary[1]);
+							String foldGuess = classifications.get(proteinName);
+							
+							if(classifications.containsKey(proteinName)) {
+								if(!queryHits.containsKey(foldGuess)) {//We start with the highest importance values so no need to check that.
+									List<Double> stub = new LinkedList<Double>();
+									stub.add(importance);
+									queryHits.put(foldGuess, stub);
+								}
+								else {
+									queryHits.get(foldGuess).add(importance);
+								}
+							}
+						}
+					}
+					
+					//Add all queryHits to total hits thingy
+					for(String fold : queryHits.keySet()) {
+						hits.add(new Hit(query, fold, queryHits.get(fold)));
+					}
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+			System.out.println("Hits: " + hits.size());
+			
+			makeGraph(folder, temp, paramSetID, classifications, hits);
+		}
+		
+		try {
+			temp.write();
+			temp.close();
+			workbook.close();
+		}
+		catch(Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public static void benchmarkMax(File resultDir) {
+		HashMap<String, String> classifications = loadClassifications();	
+		TreeSet<Hit> hits = new TreeSet<Hit>();
+		
+		Workbook workbook = null;
+		WritableWorkbook temp = null;
+		try {
+			File spreadsheet = new File("/home/jlhota/Documents/shortestpaths/Fast_ENTS/algorithm_evaluation/empty.xls");
+			workbook = Workbook.getWorkbook(spreadsheet);
+			temp = Workbook.createWorkbook(new File("/home/jlhota/Documents/shortestpaths/Fast_ENTS/algorithm_evaluation/max_data.xls"), workbook);
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		File[] folders = resultDir.listFiles();
+		int paramSetID = 0;
+		for(File folder : folders) {
+			System.out.println("Working on " + (paramSetID+1) + "/" + folders.length);
+			
+			try {				
 				File[] resultFiles = folder.listFiles();
 				
 				for(File file : resultFiles) {
@@ -225,26 +306,7 @@ public class Main {
 			
 			System.out.println("Hits: " + hits.size());
 			
-			try {				
-				Label top = new Label(paramSetID+1, 0, folder.getName());
-				sheet.addCell(top);
-				
-				int checked = 0, correct = 0;
-				for(int i = 0; i < Math.min(hits.size(), 2000); i++) {
-					Hit hit = hits.pollLast();
-					if(hit.foldGuess.equals(classifications.get(hit.proteinName))) {
-						correct++;
-					}
-					checked++;
-					
-					Number fraction = new Number(paramSetID+1, checked, ((double)correct)/885.0);
-					sheet.addCell(fraction);
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			} finally {
-				paramSetID++;
-			}
+			makeGraph(folder, temp, paramSetID, classifications, hits);
 		}
 		
 		try {
@@ -254,6 +316,68 @@ public class Main {
 		}
 		catch(Exception e) {
 			e.printStackTrace();
+		}
+	}
+	
+	public static HashMap<String,String> loadClassifications() {
+		HashMap<String, String> classifications = new HashMap<String, String>(25000);
+		try {
+			File scopFile = new File("/storage/db/SCOP/dir.scop_PDP.txt");
+			BufferedReader reader = new BufferedReader(new FileReader(scopFile));
+			while(reader.ready()) {
+				String[] classification = reader.readLine().split("\\s");
+				for(String s : classification) {
+					System.out.print(s + "___");
+				}
+				System.out.println();
+				String[] scop = classification[2].split("\\.");
+				if(!classification[3].equals("-")) {
+					classifications.put(classification[3], scop[0] + "." + scop[1]);
+				}
+			}
+		} catch(IOException e) {
+			e.printStackTrace();
+		}
+		return classifications;
+	}
+
+	
+	public static void makeGraph(File folder, WritableWorkbook temp, int paramSetID, HashMap<String,String> classifications, TreeSet<Hit> hits) {
+		WritableSheet sheet = null;
+		try {			
+			sheet = temp.getSheet(0);
+			
+			Label topN = new Label(0, 0, "Top N Hits");
+			sheet.addCell(topN);
+			
+			for(int i = 0; i < 2000; i++) {
+				Number n = new Number(0, i+1, i+1);
+				sheet.addCell(n);
+			}
+		}
+		catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		try {				
+			Label top = new Label(paramSetID+1, 0, folder.getName());
+			sheet.addCell(top);
+			
+			int checked = 0, correct = 0;
+			for(int i = 0; i < Math.min(hits.size(), 2000); i++) {
+				Hit hit = hits.pollLast();
+				if(hit.foldGuess.equals(classifications.get(hit.proteinName))) {
+					correct++;
+				}
+				checked++;
+				
+				Number fraction = new Number(paramSetID+1, checked, ((double)correct)/885.0);
+				sheet.addCell(fraction);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			paramSetID++;
 		}
 	}
 
@@ -319,7 +443,7 @@ public class Main {
 				//			}
 
 				System.out.println("Running n="+size+" and deg="+deg);
-				Statistics s = g.runAlgorithm(0, 5, 0.5F, 23, new File("res.txt"));
+				Statistics s = g.runAlgorithm(0, 5, 0.5F, 23, true, new File("res2.txt"));
 				System.out.println("Memory: " + (s.maxHeap - heapStart)/1e6 + "MB");
 				System.out.println("Time: " + s.time + "s");
 				System.out.println();
@@ -353,7 +477,7 @@ public class Main {
 		g.addUndirectedEdge(6, 8, 5);
 		g.addUndirectedEdge(6, 7, 3);
 		g.addUndirectedEdge(7, 8, 0.5);
-		g.runAlgorithm(0, 3, 0.5F, 23, new File("res_smalltest.txt"));
+		g.runAlgorithm(0, 3, 0.5F, 23, true, new File("res_smalltest2.txt"));
 		System.out.println("done");
 	}
 

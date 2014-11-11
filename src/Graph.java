@@ -47,21 +47,21 @@ public class Graph {
 	 * @param resultFile
 	 * @return
 	 */
-	public Statistics runAlgorithm(int source, int k, File resultFile) {
-		return runAlgorithm(source, k, 0f, resultFile);
+	public Statistics runAlgorithm(int source, int k, boolean outputPaths, File resultFile) {
+		return runAlgorithm(source, k, 0f, outputPaths, resultFile);
 	}
 	
 	/**
 	 * Runs the algorithm with h=23, as this is the maximum length of a gene regulatory pathway.
-	 * (Gene regulatory pathway discover was this algorithm's initial application.
+	 * (Gene regulatory pathway discovery was this algorithm's initial application.)
 	 * @param source
 	 * @param k
 	 * @param lambda
 	 * @param resultFile
 	 * @return
 	 */
-	public Statistics runAlgorithm(int source, int k, float lambda, File resultFile) {
-		return runAlgorithm(source, k, lambda, 23, resultFile);
+	public Statistics runAlgorithm(int source, int k, float lambda, boolean outputPaths, File resultFile) {
+		return runAlgorithm(source, k, lambda, 23, outputPaths, resultFile);
 	}
 	
 	/**
@@ -72,7 +72,9 @@ public class Graph {
 	 * @param h Max number of nodes in a path.
 	 * @param resultFile Text file to output the results to.
 	 */
-	public Statistics runAlgorithm(int source, int k, float lambda, int h, File resultFile) {
+	public Statistics runAlgorithm(int source, int k, float lambda, int h, boolean outputPaths, File resultFile) {
+		Statistics s = new Statistics();
+		
 		numNodesCompleted = 0;
 
 		NodeData[] data = new NodeData[number2Name.size()];
@@ -187,30 +189,36 @@ public class Graph {
 				break;
 			}
 		} while(numNodesCompleted < number2Name.size());
-				
+		
+		for(NodeData node : data) {
+			node.calculateImportance();
+		}
+		
+		s.time = (System.currentTimeMillis()-timeStart-timeToReadMem)/1000f;
+		
 		Arrays.sort(data);
+						
 		try {
 			PrintStream output = new PrintStream(new FileOutputStream(resultFile));
-			for(int i=0; i<data.length; i++) {
+			for(int i=data.length-1; i>=0; i--) {
 				NodeData node = data[i];
 				if(node.getNumber() == source) continue;
-				output.println(number2Name.get(node.getNumber()) + " " + node.importance());
-				int j = 1;
-				for(Path p : node.diversePaths) {
-					output.println(j + ". " + p.toString(number2Name) + " = " + p.getDistance());
-					j++;
+				output.println(number2Name.get(node.getNumber()) + "\t" + node.importance());
+				if(outputPaths) {
+					int j = 1;
+					for(Path p : node.diversePaths) {
+						output.println(j + ". " + p.toString(number2Name) + " = " + p.getDistance());
+						j++;
+					}
+					output.println();
 				}
-				output.println();
 			}
 			output.close();
 		} catch(IOException e) {
 			e.printStackTrace();
 		}
 			
-		
-		Statistics s = new Statistics();
 		s.maxHeap = heapMax;
-		s.time = (System.currentTimeMillis()-timeStart-timeToReadMem)/1000f;
 		
 		numNodesCompleted = 0; //Take only photos, leave only footprints.
 		
@@ -236,7 +244,9 @@ public class Graph {
 		private LinkedList<Path> paths;
 		private int node;
 		
-		public static final boolean STORAGE = true;
+		private double importance;
+		
+		public static final boolean STORAGE = false;
 		
 		public NodeData(int k, int h, int node) {
 			this.node = node;
@@ -245,6 +255,7 @@ public class Graph {
 			if(STORAGE) {
 				diverseEdges = new HashSet<Edge>(k*h);
 			}
+			importance = -1;
 		}
 		
 		public int getNumber() {
@@ -304,10 +315,6 @@ public class Graph {
 			paths.clear();
 		}
 		
-		public boolean complete(int k) {
-			return diversePaths.size() == k;
-		}
-		
 		public double longestPathDistance(int k) {
 			if(paths.size() < k) return Double.MAX_VALUE;
 			else return ((LinkedList<Path>)paths).getLast().getDistance();
@@ -338,20 +345,24 @@ public class Graph {
 			return true;
 		}
 		
-		public double importance() {
+		public void calculateImportance() {			
 			double probAllWrong = 1.0;
 			for(Path p : diversePaths) {
-				double pathImp = p.getDistance() - ((double)p.numEdges());
+				double pathImp = p.getDistance();
 				double probRight = Math.exp(-pathImp);
 				probAllWrong *= (1.0 - probRight);
 			}
 			double probAnyRight = 1.0 - probAllWrong;
-			return probAnyRight;
+			importance = probAnyRight;
 		}
-
+		
+		public double importance() {
+			return importance;
+		}
+		
 		@Override
 		public int compareTo(NodeData other) {
-			return -(new Double(importance()).compareTo(other.importance()));
+			return new Double(importance()).compareTo(other.importance());
 		}
 	}
 }
