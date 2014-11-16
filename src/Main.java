@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -34,11 +35,23 @@ public class Main {
 	
 	public static void main(String[] args) {
 		System.out.println("JL-KSP-Implementation");		
-		ENTS(Integer.parseInt(args[0]), Float.parseFloat(args[1]), Integer.parseInt(args[2]));
 		
-//		reformatData("D:\\ENTS_results_logged_edges\\K=4_lambda=0.5");
-//		reformatData("D:\\ENTS_results_logged+1_edges\\K=4_lambda=0.5");
-
+		//ENTS(Integer.parseInt(args[0]), Float.parseFloat(args[1]), Integer.parseInt(args[2]));
+		
+		//Benchmark maxes
+//		benchmarkMax(new File("D:\\ENTS_results_logged_edges"), "logged");
+//		benchmarkMax(new File("D:\\ENTS_results_logged+1_edges"), "logged+1");
+//		benchmarkMax(new File("D:\\ENTS_results_logged+1_edges_prob"), "logged+1_prob");
+		
+		//Benchmark probs
+//		benchmarkProb(new File("D:\\ENTS_results_logged+1_edges_prob"), "logged+1_prob");
+		
+		//Benchmark ents
+		benchmarkENTS(new File("D:\\ENTS_results_logged_edges"), "logged");
+		benchmarkENTS(new File("D:\\ENTS_results_logged+1_edges"), "logged+1");
+		//benchmarkENTS(new File("D:\\ENTS_results_logged_edges_prob"), "logged_prob");
+		benchmarkENTS(new File("D:\\ENTS_results_logged+1_edges_prob"), "logged+1_prob");
+		
 		System.out.println("Main method is done.");
 	}
 	
@@ -53,7 +66,7 @@ public class Main {
 				PrintStream output = new PrintStream(new FileOutputStream(reformatted));
 				while(reader.ready()) {
 					String ln = reader.readLine();
-					if(ln.isEmpty() || ln.contains("path") || ln.contains(" = ")) {
+					if(ln.isEmpty() || ln.contains("path") || ln.contains("Path") || ln.contains(" = ")) {
 						continue;
 					}
 					else {
@@ -119,7 +132,7 @@ public class Main {
 		System.out.println("Fast ENTS is finished.");
 		System.out.println("Program ended successfully on " + format.format(new Date()));
 	}
-	
+		
 	public static void runProteinFile(int k, float lambda, File f) {
 		HashMap<Integer, String> number2Name = new HashMap<Integer, String>();
 		HashMap<String, Integer> name2Number = new HashMap<String, Integer>();
@@ -127,7 +140,6 @@ public class Main {
 		try {
 			reader = new BufferedReader(new FileReader(f));
 			
-			String line;
 			int n = 0;
 
 			while(reader.ready()) {
@@ -165,16 +177,72 @@ public class Main {
 		}
 	}
 	
-	public static void benchmarkProb(File resultDir) {
+	public static void benchmarkENTS(File resultDir, String outputName) {		
 		HashMap<String, String> classifications = loadClassifications();	
 		TreeSet<Hit> hits = new TreeSet<Hit>();
 		
 		Workbook workbook = null;
 		WritableWorkbook temp = null;
 		try {
-			File spreadsheet = new File("/home/jlhota/Documents/shortestpaths/Fast_ENTS/algorithm_evaluation/empty.xls");
+			File spreadsheet = new File("algorithm_evaluation", "empty.xls");
 			workbook = Workbook.getWorkbook(spreadsheet);
-			temp = Workbook.createWorkbook(new File("/home/jlhota/Documents/shortestpaths/Fast_ENTS/algorithm_evaluation/prob_data.xls"), workbook);
+			temp = Workbook.createWorkbook(new File("algorithm_evaluation", outputName+"_ents.xls"), workbook);
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		File[] folders = resultDir.listFiles();
+		int paramSetID = 0;
+		for(File folder : folders) {
+			System.out.println("Working on " + (paramSetID+1) + "/" + folders.length);
+			
+			try {				
+				File[] resultFiles = folder.listFiles();
+				
+				for(File file : resultFiles) {
+					if(file.isDirectory()) continue;
+					
+					String query = file.getName().replace(".txt", "");
+
+					Process ents = Runtime.getRuntime().exec("perl protENTS.pl D:\\dir.scop_PDP.txt D:\\ENTS_results_logged_edges\\K=4_lambda=0.5\\d1a0pa1.txt -1");
+					BufferedReader reader = new BufferedReader(new InputStreamReader(ents.getInputStream()));
+					String ln;
+					while((ln=reader.readLine()) != null) {
+						String[] res = ln.split("\t");
+						String fold = res[0];
+						double z = Double.parseDouble(res[1]);
+						hits.add(new Hit(query, fold, z));
+					}
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+			System.out.println("Hits: " + hits.size());
+			
+			makeGraph(folder, temp, paramSetID, classifications, hits);
+		}
+		
+		try {
+			temp.write();
+			temp.close();
+			workbook.close();
+		}
+		catch(Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public static void benchmarkProb(File resultDir, String outputName) {
+		HashMap<String, String> classifications = loadClassifications();	
+		TreeSet<Hit> hits = new TreeSet<Hit>();
+		
+		Workbook workbook = null;
+		WritableWorkbook temp = null;
+		try {
+			File spreadsheet = new File("algorithm_evaluation", "empty.xls");
+			workbook = Workbook.getWorkbook(spreadsheet);
+			temp = Workbook.createWorkbook(new File("algorithm_evaluation", outputName+"_prob.xls"), workbook);
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
@@ -200,7 +268,7 @@ public class Main {
 						String line = reader.readLine();
 						if(line.contains("path") || line.isEmpty()) continue;
 						
-						String[] summary = line.split(" ");
+						String[] summary = line.split("\\s");
 						String proteinName = summary[0];
 						
 						if(!summary[1].equals("Infinity")) {
@@ -219,6 +287,7 @@ public class Main {
 							}
 						}
 					}
+					reader.close();
 					
 					//Add all queryHits to total hits thingy
 					for(String fold : queryHits.keySet()) {
@@ -244,16 +313,16 @@ public class Main {
 		}
 	}
 	
-	public static void benchmarkMax(File resultDir) {
+	public static void benchmarkMax(File resultDir, String outputName) {
 		HashMap<String, String> classifications = loadClassifications();	
 		TreeSet<Hit> hits = new TreeSet<Hit>();
 		
 		Workbook workbook = null;
 		WritableWorkbook temp = null;
 		try {
-			File spreadsheet = new File("/home/jlhota/Documents/shortestpaths/Fast_ENTS/algorithm_evaluation/empty.xls");
+			File spreadsheet = new File("algorithm_evaluation", "empty.xls");
 			workbook = Workbook.getWorkbook(spreadsheet);
-			temp = Workbook.createWorkbook(new File("/home/jlhota/Documents/shortestpaths/Fast_ENTS/algorithm_evaluation/max_data.xls"), workbook);
+			temp = Workbook.createWorkbook(new File("algorithm_evaluation", outputName+"_max.xls"), workbook);
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
@@ -281,7 +350,7 @@ public class Main {
 						String line = reader.readLine();
 						if(line.contains("path") || line.isEmpty()) continue;
 						
-						String[] summary = line.split(" ");
+						String[] summary = line.split("\\s");
 						String proteinName = summary[0];
 						
 						if(!summary[1].equals("Infinity")) {
@@ -299,6 +368,7 @@ public class Main {
 							}
 						}
 					}
+					reader.close();
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -323,6 +393,9 @@ public class Main {
 		HashMap<String, String> classifications = new HashMap<String, String>(25000);
 		try {
 			File scopFile = new File("/storage/db/SCOP/dir.scop_PDP.txt");
+			if(!scopFile.exists()) {
+				scopFile = new File("D:\\dir.scop_PDP.txt");
+			}
 			BufferedReader reader = new BufferedReader(new FileReader(scopFile));
 			while(reader.ready()) {
 				String[] classification = reader.readLine().split("\\s");
@@ -335,6 +408,7 @@ public class Main {
 					classifications.put(classification[3], scop[0] + "." + scop[1]);
 				}
 			}
+			reader.close();
 		} catch(IOException e) {
 			e.printStackTrace();
 		}
