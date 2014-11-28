@@ -1,0 +1,50 @@
+JL-KSP-Implementation
+Running n=10000 and deg=5
+Memory: 6.725936MB
+Time: 0.326s
+
+Running n=10000 and deg=10
+Memory: 9.985824MB
+Time: 0.281s
+
+Running n=10000 and deg=20
+Memory: 13.214952MB
+Time: 0.761s
+
+Running n=50000 and deg=5
+Memory: 32.302136MB
+Time: 1.169s
+
+Running n=50000 and deg=10
+Memory: 50.399032MB
+Time: 2.759s
+
+Running n=50000 and deg=20
+Memory: 66.31992MB
+Time: 8.358s
+
+Running n=250000 and deg=5
+Memory: 160.482728MB
+Time: 8.548s
+
+Running n=250000 and deg=10
+Memory: 252.196416MB
+Time: 18.079s
+
+Running n=250000 and deg=20
+Memory: 332.012216MB
+Time: 61.543s
+
+Running n=1000000 and deg=5
+Memory: 642.024MB
+Time: 37.907s
+
+Running n=1000000 and deg=10
+Memory: 1011.806224MB
+Time: 92.416s
+
+Running n=1000000 and deg=20
+Memory: 1327.465168MB
+Time: 317.081s
+
+Main method is done.

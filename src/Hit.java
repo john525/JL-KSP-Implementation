@@ -19,8 +19,8 @@ public class Hit implements Comparable<Hit> {
 		foldGuess = g;
 		
 		double probAllWrong = 1.0;
-		for(Double prob : importances) {
-			probAllWrong *= 1.0-prob;
+		for(Double probCorrect : importances) {
+			probAllWrong *= 1.0-probCorrect;
 		}
 		importance = 1.0-probAllWrong;
 	}

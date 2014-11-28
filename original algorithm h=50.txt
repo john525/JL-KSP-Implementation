@@ -1,0 +1,50 @@
+KSP WITH THE SAME ORIGINAL ALGORITHM
+Attempting n=10000, deg=5
+Time: 1.0609999895095825s
+Memory:24.591352MB
+
+Attempting n=10000, deg=10
+Time: 0.8730000257492065s
+Memory:43.134512MB
+
+Attempting n=10000, deg=20
+Time: 6.568999767303467s
+Memory:61.744112MB
+
+Attempting n=50000, deg=5
+Time: 3.572000026702881s
+Memory:172.568128MB
+
+Attempting n=50000, deg=10
+Time: 6.2729997634887695s
+Memory:267.966344MB
+
+Attempting n=50000, deg=20
+Time: 22.49799919128418s
+Memory:361.194264MB
+
+Attempting n=250000, deg=5
+Time: 15.381999969482422s
+Memory:915.378528MB
+
+Attempting n=250000, deg=10
+Time: 28.207000732421875s
+Memory:1399.818888MB
+
+Attempting n=250000, deg=20
+Time: 137.33200073242188s
+Memory:1860.339856MB
+
+Attempting n=1000000, deg=5
+Time: 93.51300048828125s
+Memory:4095.899664MB
+
+Attempting n=1000000, deg=10
+Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
+	at java.util.Vector.<init>(Unknown Source)
+	at java.util.Vector.<init>(Unknown Source)
+	at java.util.Vector.<init>(Unknown Source)
+	at SingleSourceKDiverseShortPaths_Graph$ImportanceMultipleRun.<init>(SingleSourceKDiverseShortPaths_Graph.java:156)
+	at SingleSourceKDiverseShortPaths_Graph.<init>(SingleSourceKDiverseShortPaths_Graph.java:19)
+	at SingleSourceKDiverseShortPaths.runAlgorithm(SingleSourceKDiverseShortPaths.java:131)
+	at SingleSourceKDiverseShortPaths.main(SingleSourceKDiverseShortPaths.java:45)

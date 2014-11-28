@@ -34,25 +34,92 @@ import jxl.write.Number;
 public class Main {
 	
 	public static void main(String[] args) {
-		System.out.println("JL-KSP-Implementation");		
+		System.out.println("JL-KSP-Implementation fast paths");		
+		//TODO the != infinity code is specific to certain types of importance functions --> generalize.
 		
-		//ENTS(Integer.parseInt(args[0]), Float.parseFloat(args[1]), Integer.parseInt(args[2]));
+//		ENTS(Integer.parseInt(args[0]), Float.parseFloat(args[1]), Integer.parseInt(args[2]));
 		
-		//Benchmark maxes
+//		//Benchmark maxes
 //		benchmarkMax(new File("D:\\ENTS_results_logged_edges"), "logged");
 //		benchmarkMax(new File("D:\\ENTS_results_logged+1_edges"), "logged+1");
 //		benchmarkMax(new File("D:\\ENTS_results_logged+1_edges_prob"), "logged+1_prob");
-		
-		//Benchmark probs
+//		
+//		//Benchmark probs
 //		benchmarkProb(new File("D:\\ENTS_results_logged+1_edges_prob"), "logged+1_prob");
+//		benchmarkProb(new File("D:\\ENTS_results_logged_edges_prob"), "logged_prob");
+//
+//		//Benchmark ents
+//		benchmarkENTS(new File("D:\\ENTS_results_logged+1_edges"), "logged+1");
+//		benchmarkENTS(new File("D:\\ENTS_results_logged_edges"), "logged");
+//		benchmarkENTS(new File("D:\\ENTS_results_logged_edges_prob"), "logged_prob");
+//		benchmarkENTS(new File("D:\\ENTS_results_logged+1_edges_prob"), "logged+1_prob");
 		
-		//Benchmark ents
-		benchmarkENTS(new File("D:\\ENTS_results_logged_edges"), "logged");
-		benchmarkENTS(new File("D:\\ENTS_results_logged+1_edges"), "logged+1");
-		//benchmarkENTS(new File("D:\\ENTS_results_logged_edges_prob"), "logged_prob");
-		benchmarkENTS(new File("D:\\ENTS_results_logged+1_edges_prob"), "logged+1_prob");
+		//Compute Ranks
+		int[] rankValues = {1,3,10,20};
+		calculateRanks(new File("D:\\ENTS_results_logged_edges"), rankValues);
+		calculateRanks(new File("D:\\ENTS_results_logged+1_edges"), rankValues);
+		calculateRanks(new File("D:\\ENTS_results_logged_edges_prob"), rankValues);
+		calculateRanks(new File("D:\\ENTS_results_logged+1_edges_prob"), rankValues);
 		
 		System.out.println("Main method is done.");
+	}
+	
+	public static void calculateRanks(File where, int[] k) {
+		Map<String, String> classifications = loadClassifications();
+		
+		System.out.println("Algorithm ranks for " + where.getName());
+		for(File paramSet : where.listFiles()) {
+			System.out.println(paramSet.getName());
+			for(int i=0; i<k.length; i++) {
+				System.out.println("Top " + k[i] + ": " + (100.0*calculateRank(paramSet, classifications, k[i])) + "%");
+			}
+			System.out.println();
+		}
+		System.out.println();
+	}
+	
+	public static double calculateRank(File folder, Map<String, String> classifications, int k) {
+		double proteinsCorrectlyPredictedInTop = 0;
+		double total = 0;
+
+		for(File resultFile : folder.listFiles()) {
+			if(resultFile.isDirectory()) continue;
+
+			String query = resultFile.getName().replace(".txt", "");
+			String trueFold = classifications.get(query);
+			
+			//Check if protein is correctly predicted in top k
+			try {
+				int numChecked = 0;
+				BufferedReader reader = new BufferedReader(new FileReader(resultFile));
+				while(reader.ready()) {
+					String line = reader.readLine();
+					if(line.contains("path") || line.isEmpty()) continue;
+
+					String[] summary = line.split("\\s");
+					String proteinName = summary[0];
+
+					if(!summary[1].equals("Infinity") && classifications.containsKey(proteinName)) {
+						String foldGuess = classifications.get(proteinName);
+						if(trueFold.equals(foldGuess)) {
+							proteinsCorrectlyPredictedInTop += 1.0;
+							break;
+						}
+
+						numChecked++;
+						if(numChecked == k) break;
+					}
+				}
+				reader.close();
+			} catch(IOException e) {
+				e.printStackTrace();
+			}
+			
+			//Increment total to find number of proteins
+			total += 1.0;
+		}
+		
+		return proteinsCorrectlyPredictedInTop / total;
 	}
 	
 	public static void reformatData(String folderPath) {
@@ -162,7 +229,7 @@ public class Main {
 			
 			while(reader.ready()) {
 				String[] info = reader.readLine().split(" ");
-				g.addUndirectedEdge(name2Number.get(info[0]), name2Number.get(info[1]), -Math.log(Double.valueOf(info[2]))/Math.log(10.0));
+				g.addUndirectedEdge(name2Number.get(info[0]), name2Number.get(info[1]), 1.0-Math.log(Double.valueOf(info[2]))/Math.log(10.0));
 			}
 			
 			int source = name2Number.get(f.getName().replace(".pair", ""));
@@ -171,7 +238,7 @@ public class Main {
 			File resultDir = new File("results/ENTS_results_logged_edges_prob", "K="+k+"_"+"lambda="+lambda);
 			resultDir.mkdir();
 			File finalResult = new File(resultDir, number2Name.get(source)+".txt");
-			g.runAlgorithm(source, k, lambda, 23, false, finalResult);
+			g.runAlgorithm(source, k, lambda, 50, false, finalResult);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -204,7 +271,7 @@ public class Main {
 					
 					String query = file.getName().replace(".txt", "");
 
-					Process ents = Runtime.getRuntime().exec("perl protENTS.pl D:\\dir.scop_PDP.txt D:\\ENTS_results_logged_edges\\K=4_lambda=0.5\\d1a0pa1.txt -1");
+					Process ents = Runtime.getRuntime().exec("perl protENTS.pl D:\\dir.scop_PDP.txt " + file.getPath() + " -1");
 					BufferedReader reader = new BufferedReader(new InputStreamReader(ents.getInputStream()));
 					String ln;
 					while((ln=reader.readLine()) != null) {
@@ -213,6 +280,7 @@ public class Main {
 						double z = Double.parseDouble(res[1]);
 						hits.add(new Hit(query, fold, z));
 					}
+					reader.close();
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -220,7 +288,8 @@ public class Main {
 			
 			System.out.println("Hits: " + hits.size());
 			
-			makeGraph(folder, temp, paramSetID, classifications, hits);
+			makeSpreadsheet(folder, temp, paramSetID, classifications, hits);
+			paramSetID++;
 		}
 		
 		try {
@@ -264,31 +333,30 @@ public class Main {
 					
 					BufferedReader reader = new BufferedReader(new FileReader(file));
 					Map<String, List<Double>> queryHits = new HashMap<String, List<Double>>();
+					
 					while(reader.ready()) {
 						String line = reader.readLine();
 						if(line.contains("path") || line.isEmpty()) continue;
 						
 						String[] summary = line.split("\\s");
 						String proteinName = summary[0];
-						
-						if(!summary[1].equals("Infinity")) {
-							double importance = Double.valueOf(summary[1]);
-							String foldGuess = classifications.get(proteinName);
-							
-							if(classifications.containsKey(proteinName)) {
-								if(!queryHits.containsKey(foldGuess)) {//We start with the highest importance values so no need to check that.
-									List<Double> stub = new LinkedList<Double>();
-									stub.add(importance);
-									queryHits.put(foldGuess, stub);
-								}
-								else {
-									queryHits.get(foldGuess).add(importance);
-								}
+
+						double probCorrect = Double.valueOf(summary[1]);
+						String foldGuess = classifications.get(proteinName);
+
+						if(classifications.containsKey(proteinName)) {
+							if(!queryHits.containsKey(foldGuess)) {//We start with the highest importance values so no need to check that.
+								List<Double> stub = new LinkedList<Double>();
+								stub.add(probCorrect);
+								queryHits.put(foldGuess, stub);
+							}
+							else {
+								queryHits.get(foldGuess).add(probCorrect);
 							}
 						}
 					}
 					reader.close();
-					
+
 					//Add all queryHits to total hits thingy
 					for(String fold : queryHits.keySet()) {
 						hits.add(new Hit(query, fold, queryHits.get(fold)));
@@ -300,7 +368,8 @@ public class Main {
 			
 			System.out.println("Hits: " + hits.size());
 			
-			makeGraph(folder, temp, paramSetID, classifications, hits);
+			makeSpreadsheet(folder, temp, paramSetID, classifications, hits);
+			paramSetID++;
 		}
 		
 		try {
@@ -376,7 +445,8 @@ public class Main {
 			
 			System.out.println("Hits: " + hits.size());
 			
-			makeGraph(folder, temp, paramSetID, classifications, hits);
+			makeSpreadsheet(folder, temp, paramSetID, classifications, hits);
+			paramSetID++;
 		}
 		
 		try {
@@ -399,10 +469,10 @@ public class Main {
 			BufferedReader reader = new BufferedReader(new FileReader(scopFile));
 			while(reader.ready()) {
 				String[] classification = reader.readLine().split("\\s");
-				for(String s : classification) {
-					System.out.print(s + "___");
-				}
-				System.out.println();
+//				for(String s : classification) {
+//					System.out.print(s + "___");
+//				}
+//				System.out.println();
 				String[] scop = classification[2].split("\\.");
 				if(!classification[3].equals("-")) {
 					classifications.put(classification[3], scop[0] + "." + scop[1]);
@@ -416,7 +486,7 @@ public class Main {
 	}
 
 	
-	public static void makeGraph(File folder, WritableWorkbook temp, int paramSetID, HashMap<String,String> classifications, TreeSet<Hit> hits) {
+	public static void makeSpreadsheet(File folder, WritableWorkbook temp, int paramSetID, HashMap<String,String> classifications, TreeSet<Hit> hits) {
 		WritableSheet sheet = null;
 		try {			
 			sheet = temp.getSheet(0);
@@ -424,8 +494,8 @@ public class Main {
 			Label topN = new Label(0, 0, "Top N Hits");
 			sheet.addCell(topN);
 			
-			for(int i = 0; i < 2000; i++) {
-				Number n = new Number(0, i+1, i+1);
+			for(int i = 0; i <= 2000; i+=10) {
+				Number n = new Number(0, i/10 + 1, i);
 				sheet.addCell(n);
 			}
 		}
@@ -438,23 +508,23 @@ public class Main {
 			sheet.addCell(top);
 			
 			int checked = 0, correct = 0;
-			for(int i = 0; i < Math.min(hits.size(), 2000); i++) {
+			for(int i = 0; i <= Math.min(hits.size(), 2000); i++) {
 				Hit hit = hits.pollLast();
 				if(hit.foldGuess.equals(classifications.get(hit.proteinName))) {
 					correct++;
 				}
 				checked++;
 				
-				Number fraction = new Number(paramSetID+1, checked, ((double)correct)/885.0);
-				sheet.addCell(fraction);
+				if(i%10 == 0) {
+					Number fraction = new Number(paramSetID+1, checked/10 + 1, ((double)correct)/885.0);
+					sheet.addCell(fraction);
+				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-		} finally {
-			paramSetID++;
 		}
 	}
-
+	
 	public static void doTesting(boolean newData) {
 		if(newData) new TestDataGenerator().go();
 		
@@ -517,7 +587,7 @@ public class Main {
 				//			}
 
 				System.out.println("Running n="+size+" and deg="+deg);
-				Statistics s = g.runAlgorithm(0, 5, 0.5F, 23, true, new File("res2.txt"));
+				Statistics s = g.runAlgorithm(0, 5, 0.5F, 50, true, new File("res2.txt"));
 				System.out.println("Memory: " + (s.maxHeap - heapStart)/1e6 + "MB");
 				System.out.println("Time: " + s.time + "s");
 				System.out.println();

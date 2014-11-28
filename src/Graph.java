@@ -348,7 +348,7 @@ public class Graph {
 		public void calculateImportance() {			
 			double probAllWrong = 1.0;
 			for(Path p : diversePaths) {
-				double pathImp = p.getDistance();
+				double pathImp = p.getDistance() - p.numEdges();
 				double probRight = Math.exp(-pathImp);
 				probAllWrong *= (1.0 - probRight);
 			}

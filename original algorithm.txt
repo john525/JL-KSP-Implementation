@@ -1,0 +1,40 @@
+KSP WITH THE SAME ORIGINAL ALGORITHM
+Attempting n=10000, deg=5
+Time: 1.0920000076293945s
+Memory:24.591352MB
+
+Attempting n=10000, deg=10
+Time: 0.9039999842643738s
+Memory:43.134512MB
+
+Attempting n=10000, deg=20
+Time: 5.974999904632568s
+Memory:61.744112MB
+
+Attempting n=50000, deg=5
+Time: 2.371999979019165s
+Memory:172.568128MB
+
+Attempting n=50000, deg=10
+Time: 5.25600004196167s
+Memory:267.966344MB
+
+Attempting n=50000, deg=20
+Time: 27.113000869750977s
+Memory:361.194264MB
+
+Attempting n=250000, deg=5
+Time: 16.957000732421875s
+Memory:915.378528MB
+
+Attempting n=250000, deg=10
+Time: 32.62099838256836s
+Memory:1399.818888MB
+
+Attempting n=250000, deg=20
+Time: 102.13200378417969s
+Memory:1860.339856MB
+
+Attempting n=1000000, deg=5
+Time: 88.125s
+Memory:4095.899664MB
