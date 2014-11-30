@@ -17,42 +17,38 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
-import java.util.TreeMap;
+import java.util.Set;
 import java.util.TreeSet;
 
-import jxl.CellType;
 import jxl.Workbook;
 import jxl.write.Label;
-import jxl.write.NumberFormat;
-import jxl.write.WritableCell;
-import jxl.write.WritableCellFormat;
 import jxl.write.WritableSheet;
 import jxl.write.WritableWorkbook;
 import jxl.write.Number;
 
 public class Main {
 	
+	public static final Set<String> PROT_IGNORE = proteinsToIgnore();
+	
 	public static void main(String[] args) {
 		System.out.println("JL-KSP-Implementation fast paths");		
-		//TODO the != infinity code is specific to certain types of importance functions --> generalize.
-		
 //		ENTS(Integer.parseInt(args[0]), Float.parseFloat(args[1]), Integer.parseInt(args[2]));
 		
-//		//Benchmark maxes
-//		benchmarkMax(new File("D:\\ENTS_results_logged_edges"), "logged");
-//		benchmarkMax(new File("D:\\ENTS_results_logged+1_edges"), "logged+1");
-//		benchmarkMax(new File("D:\\ENTS_results_logged+1_edges_prob"), "logged+1_prob");
-//		
-//		//Benchmark probs
-//		benchmarkProb(new File("D:\\ENTS_results_logged+1_edges_prob"), "logged+1_prob");
-//		benchmarkProb(new File("D:\\ENTS_results_logged_edges_prob"), "logged_prob");
-//
-//		//Benchmark ents
-//		benchmarkENTS(new File("D:\\ENTS_results_logged+1_edges"), "logged+1");
-//		benchmarkENTS(new File("D:\\ENTS_results_logged_edges"), "logged");
-//		benchmarkENTS(new File("D:\\ENTS_results_logged_edges_prob"), "logged_prob");
-//		benchmarkENTS(new File("D:\\ENTS_results_logged+1_edges_prob"), "logged+1_prob");
+		//Benchmark maxes
+		benchmarkMax(new File("D:\\ENTS_results_logged_edges"), "logged");
+		benchmarkMax(new File("D:\\ENTS_results_logged+1_edges"), "logged+1");
+		benchmarkMax(new File("D:\\ENTS_results_logged_edges_prob"), "logged_prob");
+		benchmarkMax(new File("D:\\ENTS_results_logged+1_edges_prob"), "logged+1_prob");
+		
+		//Benchmark probs
+		benchmarkProb(new File("D:\\ENTS_results_logged+1_edges_prob"), "logged+1_prob");
+		benchmarkProb(new File("D:\\ENTS_results_logged_edges_prob"), "logged_prob");
+
+		//Benchmark ents
+		benchmarkENTS(new File("D:\\ENTS_results_logged+1_edges"), "logged+1");
+		benchmarkENTS(new File("D:\\ENTS_results_logged_edges"), "logged");
+		benchmarkENTS(new File("D:\\ENTS_results_logged_edges_prob"), "logged_prob");
+		benchmarkENTS(new File("D:\\ENTS_results_logged+1_edges_prob"), "logged+1_prob");
 		
 		//Compute Ranks
 		int[] rankValues = {1,3,10,20};
@@ -62,6 +58,35 @@ public class Main {
 		calculateRanks(new File("D:\\ENTS_results_logged+1_edges_prob"), rankValues);
 		
 		System.out.println("Main method is done.");
+	}
+	
+	public static Set<String> proteinsToIgnore() {
+		Set<String> proteins = new HashSet<String>();
+		
+		File where = new File("D:\\ENTS_results_logged_edges", "K=4_lambda=0.5");
+		for(File resultFile : where.listFiles()) {
+			try {
+				String query = resultFile.getName().replace(".txt", "");
+				BufferedReader reader = new BufferedReader(new FileReader(resultFile));
+				while(reader.ready()) {
+					String line = reader.readLine();
+					if(line.contains("path") || line.isEmpty()) continue;
+
+					String[] summary = line.split("\\s");
+					String proteinName = summary[0];
+
+					if(summary[1].equals("Infinity")) {
+						proteins.add(query + "\t" + proteinName);
+					}
+					else break;
+				}
+				reader.close();
+			}
+			catch(IOException e) {
+				e.printStackTrace();
+			}
+		}
+		return proteins;
 	}
 	
 	public static void calculateRanks(File where, int[] k) {
@@ -99,7 +124,7 @@ public class Main {
 					String[] summary = line.split("\\s");
 					String proteinName = summary[0];
 
-					if(!summary[1].equals("Infinity") && classifications.containsKey(proteinName)) {
+					if(!PROT_IGNORE.contains(query + "\t" + proteinName) && classifications.containsKey(proteinName)) {
 						String foldGuess = classifications.get(proteinName);
 						if(trueFold.equals(foldGuess)) {
 							proteinsCorrectlyPredictedInTop += 1.0;
@@ -244,7 +269,9 @@ public class Main {
 		}
 	}
 	
-	public static void benchmarkENTS(File resultDir, String outputName) {		
+	public static void benchmarkENTS(File resultDir, String outputName) {
+		System.out.println("Benchmark ENTS, " + outputName);
+
 		HashMap<String, String> classifications = loadClassifications();	
 		TreeSet<Hit> hits = new TreeSet<Hit>();
 		
@@ -270,8 +297,22 @@ public class Main {
 					if(file.isDirectory()) continue;
 					
 					String query = file.getName().replace(".txt", "");
+					
+					File revised = new File(file.getPath().replace(".txt", "$$$.txt"));
+					
+					BufferedReader copier = new BufferedReader(new FileReader(file));
+					PrintStream output = new PrintStream(new FileOutputStream(revised));
+					while(copier.ready()) {
+						String ln = copier.readLine();
+						String[] info = ln.split("\t");
+						if(!PROT_IGNORE.contains(query + "\t" + info[0])) {
+							output.println(ln);
+						}
+					}
+					copier.close();
+					output.close();
 
-					Process ents = Runtime.getRuntime().exec("perl protENTS.pl D:\\dir.scop_PDP.txt " + file.getPath() + " -1");
+					Process ents = Runtime.getRuntime().exec("perl protENTS.pl D:\\dir.scop_PDP.txt " + revised.getPath() + " -1");
 					BufferedReader reader = new BufferedReader(new InputStreamReader(ents.getInputStream()));
 					String ln;
 					while((ln=reader.readLine()) != null) {
@@ -281,6 +322,8 @@ public class Main {
 						hits.add(new Hit(query, fold, z));
 					}
 					reader.close();
+					
+					revised.delete();
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -300,9 +343,11 @@ public class Main {
 		catch(Exception e) {
 			e.printStackTrace();
 		}
+		System.out.println();
 	}
 	
 	public static void benchmarkProb(File resultDir, String outputName) {
+		System.out.println("Benchmark Prob, " + outputName);
 		HashMap<String, String> classifications = loadClassifications();	
 		TreeSet<Hit> hits = new TreeSet<Hit>();
 		
@@ -344,7 +389,7 @@ public class Main {
 						double probCorrect = Double.valueOf(summary[1]);
 						String foldGuess = classifications.get(proteinName);
 
-						if(classifications.containsKey(proteinName)) {
+						if(classifications.containsKey(proteinName) && !PROT_IGNORE.contains(query + "\t" + proteinName)) {
 							if(!queryHits.containsKey(foldGuess)) {//We start with the highest importance values so no need to check that.
 								List<Double> stub = new LinkedList<Double>();
 								stub.add(probCorrect);
@@ -380,9 +425,12 @@ public class Main {
 		catch(Exception e) {
 			e.printStackTrace();
 		}
+		System.out.println();
 	}
 	
 	public static void benchmarkMax(File resultDir, String outputName) {
+		System.out.println("Benchmark Max, " + outputName);
+
 		HashMap<String, String> classifications = loadClassifications();	
 		TreeSet<Hit> hits = new TreeSet<Hit>();
 		
@@ -422,7 +470,7 @@ public class Main {
 						String[] summary = line.split("\\s");
 						String proteinName = summary[0];
 						
-						if(!summary[1].equals("Infinity")) {
+						if(!PROT_IGNORE.contains(query + "\t" + proteinName)) {
 							double importance = Double.valueOf(summary[1]);
 							String foldGuess = classifications.get(proteinName);
 							
@@ -457,6 +505,7 @@ public class Main {
 		catch(Exception e) {
 			e.printStackTrace();
 		}
+		System.out.println();
 	}
 	
 	public static HashMap<String,String> loadClassifications() {
@@ -509,16 +558,17 @@ public class Main {
 			
 			int checked = 0, correct = 0;
 			for(int i = 0; i <= Math.min(hits.size(), 2000); i++) {
+				if(checked%10 == 0) {
+					Number fraction = new Number(paramSetID+1, checked/10 + 1, ((double)correct)/885.0);
+					sheet.addCell(fraction);
+				}
+				
 				Hit hit = hits.pollLast();
+				System.out.println(hit.importance);
 				if(hit.foldGuess.equals(classifications.get(hit.proteinName))) {
 					correct++;
 				}
 				checked++;
-				
-				if(i%10 == 0) {
-					Number fraction = new Number(paramSetID+1, checked/10 + 1, ((double)correct)/885.0);
-					sheet.addCell(fraction);
-				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
