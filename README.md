@@ -3,7 +3,7 @@ My implementation of the single-source k diverse shortest paths algorithm.
 
 <h2>Single-Source K Diverse Shortest Paths</h2>
 <p>The single-source k diverse shortest paths algorithm was originally developed by
-[Yu-Keng Shih](https://academic.oup.com/bioinformatics/article/28/12/i49/268145).
+  <a href="https://academic.oup.com/bioinformatics/article/28/12/i49/268145">Yu-Keng Shih</a>.
 The algorithm takes a source node in a weighted directed graph, and attempts to heuristically approximate the k
 shortest paths from the source node to every other node in the network.</p>
 
@@ -27,5 +27,5 @@ widely-used sequence-based protein fold predictors.
 
 <h2>Research Results</h2>
 <p>
-For a full explanation of our research results, visit [PubMed](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4934902/).
+  For a full explanation of our research results, visit <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4934902/">PubMed</a>.
 </p>
